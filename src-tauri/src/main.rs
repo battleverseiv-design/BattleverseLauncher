@@ -343,7 +343,8 @@ async fn download_and_install_pack(
     append_log(&mc_dir_path, "installer_debug.log", &format!("Папка игры: {:?}", mc_dir_path));
     
     // Resolve download link
-    let resolved_url = tokio::task::spawn_blocking(move || resolve_mediafire(&download_url))
+    let dl_url_for_thread = download_url.clone();
+    let resolved_url = tokio::task::spawn_blocking(move || resolve_mediafire(&dl_url_for_thread))
         .await
         .map_err(|e| e.to_string())?;
         
@@ -356,6 +357,86 @@ async fn download_and_install_pack(
             max_val,
         });
     };
+    
+    // Step 0: Check if libraries or versions are missing. If so, download and extract BattleverseCore.zip!
+    let libraries_dir = mc_dir_path.join("libraries");
+    let versions_dir = mc_dir_path.join("versions");
+    if !libraries_dir.exists() || !versions_dir.exists() {
+        append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра (libraries/versions) отсутствуют. Загрузка BattleverseCore.zip...");
+        send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", 0, 100);
+        let core_url = "https://github.com/battleverseiv-design/BattleverseLauncher/releases/download/v1.0.0/BattleverseCore.zip";
+        let resp_core = client.get(core_url)
+            .header("User-Agent", "Mozilla/5.0")
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+            
+        let core_size = resp_core.content_length().unwrap_or(0);
+        let core_zip_path = mc_dir_path.join("core.zip");
+        let mut core_file = File::create(&core_zip_path).map_err(|e| e.to_string())?;
+        
+        let mut dl = 0;
+        let mut core_stream = resp_core.bytes_stream();
+        while let Some(chunk) = futures_util::StreamExt::next(&mut core_stream).await {
+            let chunk = chunk.map_err(|e| e.to_string())?;
+            std::io::copy(&mut chunk.as_ref(), &mut core_file).map_err(|e| e.to_string())?;
+            dl += chunk.len() as u64;
+            send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", dl, core_size.max(1));
+        }
+        drop(core_file);
+        
+        // Extract core zip
+        send_progress("РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...", 0, 100);
+        let core_zip_clone = core_zip_path.clone();
+        let mc_dir_core_clone = mc_dir_path.to_path_buf();
+        let window_core_clone = window.clone();
+        
+        tokio::task::spawn_blocking(move || -> Result<(), String> {
+            let zf = File::open(&core_zip_clone).map_err(|e| e.to_string())?;
+            let mut arch = zip::ZipArchive::new(zf).map_err(|e| e.to_string())?;
+            let tot = arch.len();
+            for i in 0..tot {
+                let mut f = match arch.by_index(i) {
+                    Ok(entry) => entry,
+                    Err(_) => continue,
+                };
+                let raw_name = f.name().replace('\\', "/");
+                let clean = raw_name.trim_start_matches('/');
+                if clean.is_empty() { continue; }
+                let is_dir = f.is_dir() || raw_name.ends_with('/');
+                let out = mc_dir_core_clone.join(PathBuf::from(clean));
+                if is_dir {
+                    let _ = fs::create_dir_all(&out);
+                } else {
+                    if let Some(p) = out.parent() { let _ = fs::create_dir_all(p); }
+                    if out.exists() {
+                        if let Ok(meta) = fs::metadata(&out) {
+                            let mut perms = meta.permissions();
+                            perms.set_readonly(false);
+                            let _ = fs::set_permissions(&out, perms);
+                        }
+                    }
+                    if let Ok(mut outf) = File::create(&out) {
+                        let _ = std::io::copy(&mut f, &mut outf);
+                    }
+                }
+                if i % 20 == 0 || i == tot - 1 {
+                    let _ = window_core_clone.emit("download-progress", ProgressPayload {
+                        status: "РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...".to_string(),
+                        val: (i + 1) as u64,
+                        max_val: tot as u64,
+                    });
+                }
+            }
+            Ok(())
+        }).await.map_err(|e| e.to_string())??;
+        let _ = fs::remove_file(core_zip_path);
+        append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра успешно распакованы!");
+    }
+    
+    if download_url.trim().is_empty() {
+        return Ok(());
+    }
     
     send_progress("СОЕДИНЕНИЕ С СЕРВЕРОМ...", 0, 100);
     append_log(&mc_dir_path, "installer_debug.log", "Подключение к серверу загрузки...");
