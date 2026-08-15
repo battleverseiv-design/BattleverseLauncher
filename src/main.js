@@ -122,18 +122,16 @@ function updateConfigUI() {
     usernameText.innerText = config.username.toUpperCase();
     userStatusText.innerText = "Авторизован в системе";
     authBtn.innerText = "ВЫЙТИ";
-    authBtn.className = "btn btn-outline";
+    authBtn.className = "btn btn-outline btn-danger-text"; // Add danger style for logout
     authBtn.style.color = "var(--danger)";
-    authBtn.style.borderColor = "rgba(239, 68, 68, 0.4)";
-    authBtn.style.background = "rgba(239, 68, 68, 0.08)";
+    authBtn.style.borderColor = "rgba(255, 42, 85, 0.2)";
   } else {
     usernameText.innerText = "ГОСТЬ";
     userStatusText.innerText = "Требуется авторизация";
     authBtn.innerText = "ВОЙТИ";
     authBtn.className = "btn btn-outline";
-    authBtn.style.color = "";
-    authBtn.style.borderColor = "";
-    authBtn.style.background = "";
+    authBtn.style.color = "var(--text)";
+    authBtn.style.borderColor = "rgba(255, 255, 255, 0.1)";
   }
 }
 
@@ -220,31 +218,44 @@ async function checkGameVersion() {
   if (!config.auth_token) {
     launchBtn.disabled = true;
     launchBtn.innerText = "ТРЕБУЕТСЯ ВХОД";
-    launchBtn.style.background = "";
-    launchBtn.style.boxShadow = "";
     return;
   }
 
   launchBtn.disabled = false;
-  launchBtn.style.background = "";
-  launchBtn.style.boxShadow = "";
 
+  // We can write a file checks directly using JS? No, file read is done in Rust or via Tauri path check.
+  // To keep things simple, let's ask Rust if the version txt exists or read it.
+  // Wait, we can pass version check logic to Rust or let JS call a simple check.
+  // Actually, we can check by trying to read the file `modpack_version.txt` inside the mc_dir.
+  // But wait! We can easily check it by running a quick Tauri command, or we can write a quick helper inside main.rs.
+  // Since we want to keep it simple, we can implement it as a tauri command, or write config comparison in Rust directly.
+  // Let's call a command in Rust: check_modpack_version(mc_dir, remote_version)
+  // Let's create this command in Rust. Wait, we'll implement it shortly. For now, let's assume we invoke check_modpack_version.
+  // Wait, we can just run a quick custom check or we can make a Rust invoke! Let's do a Rust invoke:
   try {
+    // We'll write the Rust command `check_local_version(mc_dir: String, remote_version: String)`
+    // Returns: "LAUNCH" (up to date), "INSTALL" (empty), "UPDATE" (outdated)
     const remoteV = remoteConfig.version || "1.0";
     const status = await invoke("check_local_version", { mcDir: config.mc_dir, remoteVersion: remoteV });
     actionType = status;
     
     if (actionType === "INSTALL") {
       launchBtn.innerText = "УСТАНОВИТЬ";
+      launchBtn.style.background = "var(--accent)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(0, 240, 255, 0.2)";
     } else if (actionType === "UPDATE") {
       launchBtn.innerText = "ОБНОВИТЬ";
+      launchBtn.style.background = "var(--purple)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(161, 0, 255, 0.2)";
     } else {
       launchBtn.innerText = "ЗАПУСТИТЬ";
+      launchBtn.style.background = "var(--success)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(0, 255, 136, 0.15)";
     }
   } catch (err) {
     console.error("Version check error:", err);
-    actionType = "INSTALL";
-    launchBtn.innerText = "УСТАНОВИТЬ";
+    actionType = "LAUNCH";
+    launchBtn.innerText = "ЗАПУСТИТЬ";
   }
 }
 
@@ -437,16 +448,8 @@ launchBtn.onclick = async () => {
   launchBtn.innerText = "ПОДГОТОВКА...";
 
   try {
-    // 1. Double check if local files exist
-    const remoteV = remoteConfig.version || "1.0";
-    const currentStatus = await invoke("check_local_version", { mcDir: config.mc_dir, remoteVersion: remoteV });
-    if (currentStatus === "INSTALL" || currentStatus === "UPDATE") {
-      actionType = currentStatus;
-    }
-
-    // 2. Install or update modpack if needed
+    // 1. Install or update modpack if needed
     if (actionType === "INSTALL" || actionType === "UPDATE") {
-      launchBtn.innerText = actionType === "INSTALL" ? "УСТАНОВКА..." : "ОБНОВЛЕНИЕ...";
       const ignoreFiles = remoteConfig.ignore_update_files || ["options.txt", "servers.dat"];
       await invoke("download_and_install_pack", {
         downloadUrl: remoteConfig.download_url,
@@ -455,19 +458,17 @@ launchBtn.onclick = async () => {
       });
       
       // Save local version file
-      await invoke("write_version_file", { mcDir: config.mc_dir, version: remoteV });
+      await invoke("write_version_file", { mcDir: config.mc_dir, version: remoteConfig.version || "1.0" });
       actionType = "LAUNCH";
     }
 
-    launchBtn.innerText = "ЗАПУСК...";
-
-    // 3. Prepare join on API
+    // 2. Prepare join on API
     await invoke("prepare_join", {
       apiUrl: remoteConfig.api_base_url || "https://battleverseiv.netlify.app/api",
       token: config.auth_token
     });
 
-    // 4. Launch Minecraft Java
+    // 3. Launch Minecraft Java
     await invoke("launch_game", {
       mcDir: config.mc_dir,
       mcVersion: remoteConfig.mc_version || "1.20.1",
@@ -478,7 +479,7 @@ launchBtn.onclick = async () => {
 
   } catch (err) {
     console.error("Launch error:", err);
-    alert(`Ошибка: ${err}`);
+    alert(`Ошибка при запуске: ${err}`);
     isLaunching = false;
     checkGameVersion();
   }
