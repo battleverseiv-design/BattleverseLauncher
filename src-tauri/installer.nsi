@@ -608,13 +608,14 @@ Section Install
     File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
+  ; Copy WebView2Loader.dll to main directory if in resources
+  IfFileExists "$INSTDIR\resources\WebView2Loader.dll" 0 +2
+    CopyFiles /SILENT "$INSTDIR\resources\WebView2Loader.dll" "$INSTDIR\WebView2Loader.dll"
+
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
-
-  ; Copy WebView2Loader.dll from resources to main directory
-  CopyFiles "$INSTDIR\resources\target\release\WebView2Loader.dll" "$INSTDIR\WebView2Loader.dll"
 
   ; Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
