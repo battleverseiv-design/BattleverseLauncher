@@ -118,7 +118,7 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
 !define MUI_WELCOMEPAGE_TITLE "Установка Battleverse Launcher"
-!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft:$\r$\n  • Реалистичная баллистика и физика оружия$\r$\n  • Уникальные классы бойцов и спецснаряжение$\r$\n  • Захватывающие бои на выживание: останься последним выжившим$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
+!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft.$\r$\n$\r$\n• Реалистичная баллистика и уникальные классы$\r$\n• Динамичные бои: останься последним выжившим$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_WELCOME
 
@@ -217,13 +217,13 @@ Function PageReinstall
 
   ; Fallback checks if strings are empty
   ${If} $R1 == ""
-    StrCpy $R1 "Battleverse Launcher уже установлен на этом компьютере.$\r$\n$\r$\nВыберите необходимое действие:"
+    StrCpy $R1 "Battleverse Launcher уже установлен на этом компьютере.$\r$\nВыберите действие для продолжения:"
   ${EndIf}
   ${If} $R2 == ""
-    StrCpy $R2 "Переустановить или обновить файлы лаунчера (Рекомендуется)"
+    StrCpy $R2 "Переустановить / обновить компоненты лаунчера"
   ${EndIf}
   ${If} $R3 == ""
-    StrCpy $R3 "Удалить Battleverse Launcher"
+    StrCpy $R3 "Удалить Battleverse Launcher с этого компьютера"
   ${EndIf}
 
   Call SkipIfPassive
@@ -232,14 +232,14 @@ Function PageReinstall
   Pop $R4
   ${IfThen} $(^RTL) == 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  ${NSD_CreateLabel} 0 0 100% 28u $R1
+  ${NSD_CreateLabel} 0 0 100% 24u $R1
   Pop $R1
 
-  ${NSD_CreateRadioButton} 20u 45u -20u 12u $R2
+  ${NSD_CreateRadioButton} 10u 34u -10u 12u $R2
   Pop $R2
   ${NSD_OnClick} $R2 PageReinstallUpdateSelection
 
-  ${NSD_CreateRadioButton} 20u 65u -20u 12u $R3
+  ${NSD_CreateRadioButton} 10u 52u -10u 12u $R3
   Pop $R3
   ; disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
@@ -315,7 +315,7 @@ Function PageLeaveReinstall
 FunctionEnd
 
 ; 5. Choose install directory page
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку. Для клиента игры, ресурспаков и модов требуется около 1.0 ГБ свободного места на диске.$\r$\n$\r$\nЧтобы выбрать другую папку, нажмите «Обзор»."
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку (требуется ~1.0 ГБ свободного места). Чтобы выбрать другую папку, нажмите «Обзор»."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_DIRECTORY
 
@@ -391,13 +391,13 @@ FunctionEnd
 LangString older ${LANG_RUSSIAN} "более старая"
 LangString unknown ${LANG_RUSSIAN} "неизвестная"
 LangString alreadyInstalled ${LANG_RUSSIAN} "Обслуживание программы"
-LangString chooseMaintenanceOption ${LANG_RUSSIAN} "Выберите необходимое действие:"
-LangString alreadyInstalledLong ${LANG_RUSSIAN} "Battleverse Launcher уже установлен на этом компьютере.$\r$\n$\r$\nВыберите один из вариантов ниже для продолжения:"
-LangString addOrReinstall ${LANG_RUSSIAN} "Переустановить / обновить компоненты лаунчера (Рекомендуется)"
+LangString chooseMaintenanceOption ${LANG_RUSSIAN} "Выберите действие:"
+LangString alreadyInstalledLong ${LANG_RUSSIAN} "Battleverse Launcher уже установлен на этом компьютере.$\r$\nВыберите действие для продолжения:"
+LangString addOrReinstall ${LANG_RUSSIAN} "Переустановить / обновить компоненты лаунчера"
 LangString uninstallApp ${LANG_RUSSIAN} "Удалить Battleverse Launcher с этого компьютера"
-LangString olderOrUnknownVersionInstalled ${LANG_RUSSIAN} "Обнаружена установленная версия Battleverse Launcher.$\r$\n$\r$\nВыберите действие:"
-LangString uninstallBeforeInstalling ${LANG_RUSSIAN} "Обновить и перезаписать файлы лаунчера (Рекомендуется)"
-LangString dontUninstall ${LANG_RUSSIAN} "Установить в отдельную директорию"
+LangString olderOrUnknownVersionInstalled ${LANG_RUSSIAN} "Обнаружена установленная версия Battleverse Launcher.$\r$\nВыберите действие:"
+LangString uninstallBeforeInstalling ${LANG_RUSSIAN} "Обновить и перезаписать файлы лаунчера"
+LangString dontUninstall ${LANG_RUSSIAN} "Установить в отдельную папку"
 LangString dontUninstallDowngrade ${LANG_RUSSIAN} "Оставить текущую версию"
 LangString choowHowToInstall ${LANG_RUSSIAN} "Выберите параметры обновления:"
 LangString newerVersionInstalled ${LANG_RUSSIAN} "На вашем компьютере установлена более новая версия."
