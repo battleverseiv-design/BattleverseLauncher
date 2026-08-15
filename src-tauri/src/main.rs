@@ -71,6 +71,14 @@ fn resolve_mc_dir(mc_dir: &str) -> PathBuf {
     }
 }
 
+fn append_log(mc_dir: &Path, file_name: &str, line: &str) {
+    let log_path = mc_dir.join(file_name);
+    if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(&log_path) {
+        use std::io::Write;
+        let _ = writeln!(f, "{}", line);
+    }
+}
+
 fn get_config_file_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -329,6 +337,11 @@ async fn download_and_install_pack(
         fs::create_dir_all(&mc_dir_path).map_err(|e| e.to_string())?;
     }
     
+    append_log(&mc_dir_path, "installer_debug.log", "========================================");
+    append_log(&mc_dir_path, "installer_debug.log", &format!("ЗАПУСК УСТАНОВКИ/ОБНОВЛЕНИЯ СБОРКИ"));
+    append_log(&mc_dir_path, "installer_debug.log", &format!("URL архива: {}", download_url));
+    append_log(&mc_dir_path, "installer_debug.log", &format!("Папка игры: {:?}", mc_dir_path));
+    
     // Resolve download link
     let resolved_url = tokio::task::spawn_blocking(move || resolve_mediafire(&download_url))
         .await
@@ -345,6 +358,7 @@ async fn download_and_install_pack(
     };
     
     send_progress("СОЕДИНЕНИЕ С СЕРВЕРОМ...", 0, 100);
+    append_log(&mc_dir_path, "installer_debug.log", "Подключение к серверу загрузки...");
     
     let resp = client.get(&resolved_url)
         .header("User-Agent", "Mozilla/5.0")
@@ -690,16 +704,21 @@ async fn launch_game(
     
     // Construct classpath
     send_progress("СБОРКА КЛАССОВ (CLASSPATH)...", 40, 100);
+    append_log(&mc_dir_path, "launcher_debug.log", "Сборка classpath...");
     
-    let libraries_dir = Path::new(&mc_dir).join("libraries");
+    let libraries_dir = mc_dir_path.join("libraries");
+    append_log(&mc_dir_path, "launcher_debug.log", &format!("Проверка libraries: {:?} (существует: {})", libraries_dir, libraries_dir.exists()));
+    
     if !libraries_dir.exists() {
-        return Err("Папка libraries не найдена! Установите сборку перед запуском.".to_string());
+        append_log(&mc_dir_path, "launcher_debug.log", "ОШИБКА: Папка libraries не найдена!");
+        return Err(format!("Папка libraries не найдена по пути: {:?}! Запустите установку.", libraries_dir));
     }
     
     let mut jars = Vec::new();
     
     // 1. Get libraries from vanilla JSON
     let vanilla_libs = get_libraries_from_json(&mc_dir, &mc_version);
+    append_log(&mc_dir_path, "launcher_debug.log", &format!("Vanilla JSON библиотеки: найдено {}", vanilla_libs.len()));
     for lib in vanilla_libs {
         let full_path = libraries_dir.join(&lib);
         jars.push(full_path.to_string_lossy().to_string());
@@ -713,21 +732,24 @@ async fn launch_game(
     };
     
     let forge_libs = get_libraries_from_json(&mc_dir, &version_id);
+    append_log(&mc_dir_path, "launcher_debug.log", &format!("Forge JSON ({}) библиотеки: найдено {}", version_id, forge_libs.len()));
     for lib in forge_libs {
         let full_path = libraries_dir.join(&lib);
         jars.push(full_path.to_string_lossy().to_string());
     }
     
-    let forge_client_jar = Path::new(&mc_dir)
+    let forge_client_jar = mc_dir_path
         .join("versions")
         .join(&version_id)
         .join(format!("{}.jar", version_id));
         
     if forge_client_jar.exists() {
+        append_log(&mc_dir_path, "launcher_debug.log", &format!("Найден Forge Client Jar: {:?}", forge_client_jar));
         jars.push(forge_client_jar.to_string_lossy().to_string());
     }
     
     let classpath = jars.join(";");
+    append_log(&mc_dir_path, "launcher_debug.log", &format!("Всего Jar-файлов в classpath: {}", jars.len()));
     
     // Build arguments
     send_progress("НАСТРОЙКА АРГУМЕНТОВ...", 70, 100);
