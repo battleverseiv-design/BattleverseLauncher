@@ -408,33 +408,58 @@ async fn download_and_install_pack(
     let window_clone = window.clone();
     
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let zip_file = File::open(&zip_path_clone).map_err(|e| e.to_string())?;
-        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| e.to_string())?;
+        let zip_file = File::open(&zip_path_clone).map_err(|e| format!("Не удалось открыть архив: {}", e))?;
+        let mut archive = zip::ZipArchive::new(zip_file).map_err(|e| format!("Ошибка чтения ZIP: {}", e))?;
         let total_files = archive.len();
         
         for i in 0..total_files {
-            let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-            let outpath = match file.enclosed_name() {
-                Some(path) => mc_dir_clone.join(path),
-                None => continue,
+            let mut file = match archive.by_index(i) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Warning: Skipping zip entry {}: {}", i, e);
+                    continue;
+                }
             };
             
-            if (*file.name()).ends_with('/') {
-                fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
-            } else {
-                if let Some(p) = outpath.parent() {
-                    if !p.exists() {
-                        fs::create_dir_all(p).map_err(|e| e.to_string())?;
-                    }
-                }
-                let mut outfile = File::create(&outpath).map_err(|e| e.to_string())?;
-                std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+            let raw_name = file.name().replace('\\', "/");
+            let clean_name = raw_name.trim_start_matches('/');
+            if clean_name.is_empty() {
+                continue;
             }
             
-            if i % 10 == 0 || i == total_files - 1 {
+            let is_dir = file.is_dir() || raw_name.ends_with('/');
+            let outpath = mc_dir_clone.join(PathBuf::from(clean_name));
+            
+            if is_dir {
+                let _ = fs::create_dir_all(&outpath);
+            } else {
+                if let Some(p) = outpath.parent() {
+                    let _ = fs::create_dir_all(p);
+                }
+                
+                // Try to create file, removing readonly if exists
+                if outpath.exists() {
+                    if let Ok(meta) = fs::metadata(&outpath) {
+                        let mut perms = meta.permissions();
+                        perms.set_readonly(false);
+                        let _ = fs::set_permissions(&outpath, perms);
+                    }
+                }
+                
+                match File::create(&outpath) {
+                    Ok(mut outfile) => {
+                        let _ = std::io::copy(&mut file, &mut outfile);
+                    }
+                    Err(e) => {
+                        eprintln!("Warning: could not write file {:?}: {}", outpath, e);
+                    }
+                }
+            }
+            
+            if i % 15 == 0 || i == total_files - 1 {
                 let _ = window_clone.emit("download-progress", ProgressPayload {
                     status: "РАСПАКОВКА ФАЙЛОВ...".to_string(),
-                    val: i as u64,
+                    val: (i + 1) as u64,
                     max_val: total_files as u64,
                 });
             }
