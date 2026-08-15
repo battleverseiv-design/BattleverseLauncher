@@ -57,6 +57,20 @@ fn get_default_mc_dir() -> PathBuf {
         .join(".battleverse_launcher")
 }
 
+fn resolve_mc_dir(mc_dir: &str) -> PathBuf {
+    let trimmed = mc_dir.trim();
+    if trimmed.is_empty() {
+        get_default_mc_dir()
+    } else {
+        let p = PathBuf::from(trimmed);
+        if p.is_relative() {
+            dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")).join(p)
+        } else {
+            p
+        }
+    }
+}
+
 fn get_config_file_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -310,9 +324,9 @@ async fn download_and_install_pack(
     mc_dir: String,
     ignore_list: Vec<String>,
 ) -> Result<(), String> {
-    let mc_dir_path = Path::new(&mc_dir);
+    let mc_dir_path = resolve_mc_dir(&mc_dir);
     if !mc_dir_path.exists() {
-        fs::create_dir_all(mc_dir_path).map_err(|e| e.to_string())?;
+        fs::create_dir_all(&mc_dir_path).map_err(|e| e.to_string())?;
     }
     
     // Resolve download link
@@ -620,6 +634,8 @@ async fn launch_game(
     username: String,
     ram_gb: u32,
 ) -> Result<(), String> {
+    let mc_dir_path = resolve_mc_dir(&mc_dir);
+    let mc_dir = mc_dir_path.to_string_lossy().to_string();
     let ram_mb = ram_gb * 1024;
     
     let send_progress = |status: &str, val: u64, max_val: u64| {
@@ -695,7 +711,7 @@ async fn launch_game(
     
     // Memory settings
     args.push(format!("-Xmx{}M", ram_mb));
-    args.push(format!("-Xms{}M", ram_mb));
+    args.push("-Xms512M".to_string());
     
     // Load JVM args dynamically from JSON
     let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
@@ -826,8 +842,12 @@ async fn launch_game(
 
 #[tauri::command]
 fn check_local_version(mc_dir: String, remote_version: String) -> String {
-    let version_file = Path::new(&mc_dir).join("modpack_version.txt");
-    if !version_file.exists() {
+    let mc_dir_path = resolve_mc_dir(&mc_dir);
+    let libraries_dir = mc_dir_path.join("libraries");
+    let versions_dir = mc_dir_path.join("versions");
+    let version_file = mc_dir_path.join("modpack_version.txt");
+    
+    if !libraries_dir.exists() || !versions_dir.exists() || !version_file.exists() {
         return "INSTALL".to_string();
     }
     match fs::read_to_string(version_file) {
@@ -844,7 +864,8 @@ fn check_local_version(mc_dir: String, remote_version: String) -> String {
 
 #[tauri::command]
 fn write_version_file(mc_dir: String, version: String) -> Result<(), String> {
-    let version_file = Path::new(&mc_dir).join("modpack_version.txt");
+    let mc_dir_path = resolve_mc_dir(&mc_dir);
+    let version_file = mc_dir_path.join("modpack_version.txt");
     fs::write(version_file, version.trim()).map_err(|e| e.to_string())
 }
 
