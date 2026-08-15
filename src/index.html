@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BATTLEVERSE Launcher</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- GLOW EFFECTS -->
+  <div class="ambient-glow cyan-glow"></div>
+  <div class="ambient-glow purple-glow"></div>
+
+  <div class="app-container">
+    <!-- HEADER -->
+    <header class="header">
+      <div class="logo-area">
+        <h1 class="logo-text">BATTLEVERSE</h1>
+        <span class="version-tag">V1.0</span>
+      </div>
+      <div class="server-status-area">
+        <div id="status-dot" class="status-dot pulse-idle"></div>
+        <span id="server-status-text">ПРОВЕРКА СВЯЗИ...</span>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <main class="main-content">
+      <!-- NEWS CARD -->
+      <section class="card news-card">
+        <div class="card-body" id="news-content">
+          <div class="loading-spinner"></div>
+          <p>Подключение к серверам конфигурации...</p>
+        </div>
+      </section>
+
+      <!-- MAIL CARD -->
+      <section class="card mail-card">
+        <div class="card-header">
+          <span class="card-icon">✉️</span>
+          <h2>СООБЩЕНИЯ</h2>
+          <span class="mail-badge" id="mail-count">0</span>
+        </div>
+        <div class="card-body mail-list" id="mail-list">
+          <div class="mail-placeholder">Авторизуйтесь в системе, чтобы просматривать почту.</div>
+        </div>
+      </section>
+    </main>
+
+    <!-- PROGRESS AREA -->
+    <div class="progress-container">
+      <div class="progress-bar" id="progress-bar"></div>
+      <span class="status-message" id="status-message">ОЖИДАНИЕ ДЕЙСТВИЙ</span>
+    </div>
+
+    <!-- BOTTOM CONTROL PANEL -->
+    <footer class="bottom-panel">
+      <!-- Profile Area -->
+      <div class="profile-section">
+        <div class="avatar-glow"></div>
+        <div class="profile-info">
+          <span class="username" id="username-text">ГОСТЬ</span>
+          <span class="user-status" id="user-status-text">Требуется авторизация</span>
+        </div>
+        <button class="btn btn-outline" id="auth-btn">ВОЙТИ</button>
+      </div>
+
+      <!-- RAM Selection -->
+      <div class="ram-section">
+        <span class="control-label">ОЗУ (ГБ)</span>
+        <div class="ram-controls">
+          <button class="ram-btn" id="ram-minus">-</button>
+          <div class="ram-display" id="ram-display">6</div>
+          <button class="ram-btn" id="ram-plus">+</button>
+        </div>
+      </div>
+
+      <!-- Links and Utilities -->
+      <div class="utility-section">
+        <button class="btn btn-icon" id="btn-website" title="Перейти на сайт">САЙТ</button>
+        <button class="btn btn-icon" id="btn-discord" title="Войти в Discord">DISCORD</button>
+        <button class="btn btn-icon btn-folder" id="btn-folder" title="Выбрать папку игры">📁</button>
+      </div>
+
+      <!-- Launch Buttons -->
+      <div class="launch-section">
+        <button class="btn btn-launch" id="launch-btn" disabled>ЗАПУСТИТЬ</button>
+        <button class="btn btn-danger" id="stop-btn" style="display: none;">ОСТАНОВИТЬ</button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- POPUP MODALS -->
+  <div class="modal-overlay" id="modal-overlay">
+    <!-- Auth Modal -->
+    <div class="modal-card" id="auth-modal">
+      <button class="modal-close" id="auth-close">&times;</button>
+      <h2>АВТОРИЗАЦИЯ</h2>
+      <p class="modal-subtitle">Войдите в свой профиль Battleverse</p>
+      
+      <div class="input-group">
+        <label for="login-input">ЛОГИН</label>
+        <input type="text" id="login-input" placeholder="Введите никнейм..." autocomplete="off">
+      </div>
+      
+      <div class="input-group">
+        <label for="password-input">ПАРОЛЬ</label>
+        <input type="password" id="password-input" placeholder="Введите пароль...">
+      </div>
+
+      <div class="modal-error" id="auth-error"></div>
+
+      <button class="btn btn-launch" id="login-submit-btn">ВОЙТИ</button>
+      <button class="btn btn-link" id="register-btn">Создать аккаунт (Сайт)</button>
+    </div>
+
+    <!-- Mail Detail Modal -->
+    <div class="modal-card" id="mail-modal">
+      <button class="modal-close" id="mail-close">&times;</button>
+      <div class="mail-detail-header">
+        <span class="mail-detail-sender" id="mail-detail-sender">От: Система</span>
+        <h3 id="mail-detail-subject">Тема сообщения</h3>
+      </div>
+      <div class="mail-detail-body" id="mail-detail-content">
+        Содержимое письма...
+      </div>
+      <div class="modal-footer">
+        <span class="modal-note">Текст можно выделить и скопировать</span>
+        <button class="btn btn-outline" id="mail-close-btn">ЗАКРЫТЬ</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
