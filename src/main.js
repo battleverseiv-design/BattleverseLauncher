@@ -122,16 +122,18 @@ function updateConfigUI() {
     usernameText.innerText = config.username.toUpperCase();
     userStatusText.innerText = "Авторизован в системе";
     authBtn.innerText = "ВЫЙТИ";
-    authBtn.className = "btn btn-outline btn-danger-text"; // Add danger style for logout
+    authBtn.className = "btn btn-outline";
     authBtn.style.color = "var(--danger)";
-    authBtn.style.borderColor = "rgba(255, 42, 85, 0.2)";
+    authBtn.style.borderColor = "rgba(239, 68, 68, 0.4)";
+    authBtn.style.background = "rgba(239, 68, 68, 0.08)";
   } else {
     usernameText.innerText = "ГОСТЬ";
     userStatusText.innerText = "Требуется авторизация";
     authBtn.innerText = "ВОЙТИ";
     authBtn.className = "btn btn-outline";
-    authBtn.style.color = "var(--text)";
-    authBtn.style.borderColor = "rgba(255, 255, 255, 0.1)";
+    authBtn.style.color = "";
+    authBtn.style.borderColor = "";
+    authBtn.style.background = "";
   }
 }
 
@@ -224,6 +226,8 @@ async function checkGameVersion() {
   }
 
   launchBtn.disabled = false;
+  launchBtn.style.background = "";
+  launchBtn.style.boxShadow = "";
 
   try {
     const remoteV = remoteConfig.version || "1.0";
@@ -232,23 +236,15 @@ async function checkGameVersion() {
     
     if (actionType === "INSTALL") {
       launchBtn.innerText = "УСТАНОВИТЬ";
-      launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
-      launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
     } else if (actionType === "UPDATE") {
       launchBtn.innerText = "ОБНОВИТЬ";
-      launchBtn.style.background = "linear-gradient(135deg, #3b82f6, var(--orange))";
-      launchBtn.style.boxShadow = "0 0 20px rgba(59, 130, 246, 0.35)";
     } else {
       launchBtn.innerText = "ЗАПУСТИТЬ";
-      launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
-      launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
     }
   } catch (err) {
     console.error("Version check error:", err);
     actionType = "INSTALL";
     launchBtn.innerText = "УСТАНОВИТЬ";
-    launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
-    launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
   }
 }
 
