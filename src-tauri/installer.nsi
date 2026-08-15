@@ -105,20 +105,59 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; installer header image
 !if "${HEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE
+  !define MUI_HEADERIMAGE_RIGHT
   !define MUI_HEADERIMAGE_BITMAP  "${HEADERIMAGE}"
   !define MUI_HEADERIMAGE_UNBITMAP "${HEADERIMAGE}"
 !endif
+
+; Full Dark Theme Configuration
+!define MUI_BGCOLOR "040814"
+!define MUI_TEXTCOLOR "F8FAFC"
+!define MUI_HEADER_TRANSPARENT_TEXT
 
 ; Define registry key to store installer language
 !define MUI_LANGDLL_REGISTRY_ROOT "HKCU"
 !define MUI_LANGDLL_REGISTRY_KEY "${MANUPRODUCTKEY}"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "Installer Language"
 
+!define MUI_CUSTOMFUNCTION_GUIINIT CustomGUIInit
+
+; Helper to apply Windows Dark Mode and Dark Backgrounds
+Function CustomGUIInit
+  Call ApplyDarkTheme
+FunctionEnd
+
+Function ApplyDarkTheme
+  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
+  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  SetCtlColors $HWNDPARENT 0xF8FAFC 0x040814
+  SetCtlColors $0 0xF8FAFC 0x040814
+  GetDlgItem $1 $HWNDPARENT 1034
+  SetCtlColors $1 0x64748B 0x040814
+  GetDlgItem $1 $HWNDPARENT 1037
+  SetCtlColors $1 0xFF7700 0x040814
+  GetDlgItem $1 $HWNDPARENT 1038
+  SetCtlColors $1 0x93C5FD 0x040814
+  GetDlgItem $1 $HWNDPARENT 1028
+  SetCtlColors $1 0xF8FAFC 0x040814
+FunctionEnd
+
+Function WelcomePageShow
+  Call ApplyDarkTheme
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1200
+  SetCtlColors $1 0xFF7700 0x040814
+  GetDlgItem $1 $0 1000
+  SetCtlColors $1 0xF8FAFC 0x040814
+FunctionEnd
+
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
 !define MUI_WELCOMEPAGE_TITLE "Установка Battleverse Launcher"
-!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft:$\r$\n  • Реалистичная баллистика и физика оружия$\r$\n  • Уникальные классы бойцов и спецснаряжение$\r$\n  • Динамичные командные бои (формат 4 игрока)$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
+!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft:$\r$\n  • Реалистичная баллистика и физика оружия$\r$\n  • Уникальные классы бойцов и спецснаряжение$\r$\n  • Захватывающие бои на выживание: останься последним выжившим$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW WelcomePageShow
 !insertmacro MUI_PAGE_WELCOME
 
 ; 2. License Page (if defined)
@@ -214,21 +253,39 @@ Function PageReinstall
     Abort
   ${EndIf}
 
+  ; Fallback checks if strings are empty
+  ${If} $R1 == ""
+    StrCpy $R1 "Battleverse Launcher уже установлен на этом компьютере.$\r$\n$\r$\nВыберите необходимое действие:"
+  ${EndIf}
+  ${If} $R2 == ""
+    StrCpy $R2 "Переустановить или обновить файлы лаунчера (Рекомендуется)"
+  ${EndIf}
+  ${If} $R3 == ""
+    StrCpy $R3 "Удалить Battleverse Launcher"
+  ${EndIf}
+
   Call SkipIfPassive
+
+  Call ApplyDarkTheme
 
   nsDialogs::Create 1018
   Pop $R4
   ${IfThen} $(^RTL) == 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  ${NSD_CreateLabel} 0 0 100% 24u $R1
-  Pop $R1
+  SetCtlColors $R4 0xF8FAFC 0x040814
 
-  ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
+  ${NSD_CreateLabel} 0 0 100% 36u $R1
+  Pop $R1
+  SetCtlColors $R1 0xF8FAFC 0x040814
+
+  ${NSD_CreateRadioButton} 15u 46u -15u 14u $R2
   Pop $R2
+  SetCtlColors $R2 0xFF9D42 0x040814
   ${NSD_OnClick} $R2 PageReinstallUpdateSelection
 
-  ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
+  ${NSD_CreateRadioButton} 15u 66u -15u 14u $R3
   Pop $R3
+  SetCtlColors $R3 0xF8FAFC 0x040814
   ; disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
     ${IfThen} $R0 == -1 ${|} EnableWindow $R3 0 ${|}
@@ -302,9 +359,25 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
+Function DirectoryPageShow
+  Call ApplyDarkTheme
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1006
+  SetCtlColors $1 0xF8FAFC 0x040814
+  GetDlgItem $1 $0 1019
+  SetCtlColors $1 0x93C5FD 0x040814
+  GetDlgItem $1 $0 1020
+  SetCtlColors $1 0x93C5FD 0x040814
+  GetDlgItem $1 $0 1023
+  SetCtlColors $1 0xFFFFFF 0x0A1530
+  GetDlgItem $1 $0 1024
+  SetCtlColors $1 0xF8FAFC 0x040814
+FunctionEnd
+
 ; 5. Choose install directory page
 !define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку. Для клиента игры, ресурспаков и модов требуется около 1.0 ГБ свободного места на диске.$\r$\n$\r$\nЧтобы выбрать другую папку, нажмите «Обзор»."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW DirectoryPageShow
 !insertmacro MUI_PAGE_DIRECTORY
 
 ; 6. Start menu shortcut page
@@ -312,8 +385,33 @@ FunctionEnd
 Var AppStartMenuFolder
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
+Function InstFilesPageShow
+  Call ApplyDarkTheme
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1006
+  SetCtlColors $1 0xF8FAFC 0x040814
+  GetDlgItem $1 $0 1016
+  SetCtlColors $1 0x93C5FD 0x060E22
+FunctionEnd
+
 ; 7. Installation page
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW InstFilesPageShow
 !insertmacro MUI_PAGE_INSTFILES
+
+Function FinishPageShow
+  Call ApplyDarkTheme
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  GetDlgItem $1 $0 1200
+  SetCtlColors $1 0xFF7700 0x040814
+  GetDlgItem $1 $0 1000
+  SetCtlColors $1 0xF8FAFC 0x040814
+  GetDlgItem $1 $0 1201
+  SetCtlColors $1 0xFF9D42 0x040814
+  GetDlgItem $1 $0 1203
+  SetCtlColors $1 0xFF9D42 0x040814
+  GetDlgItem $1 $0 1028
+  SetCtlColors $1 0x38BDF8 0x040814
+FunctionEnd
 
 ; 8. Finish page
 ;
@@ -333,6 +431,7 @@ Var AppStartMenuFolder
 !define MUI_FINISHPAGE_LINK "Перейти на официальный сайт Battleverse IV"
 !define MUI_FINISHPAGE_LINK_LOCATION "https://battleverseiv.netlify.app/"
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
+!define MUI_PAGE_CUSTOMFUNCTION_SHOW FinishPageShow
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary
@@ -344,8 +443,18 @@ FunctionEnd
 Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
 !define /ifndef WS_EX_LAYOUTRTL         0x00400000
+
+Function un.ApplyDarkTheme
+  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
+  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
+  FindWindow $0 "#32770" "" $HWNDPARENT
+  SetCtlColors $HWNDPARENT 0xF8FAFC 0x040814
+  SetCtlColors $0 0xF8FAFC 0x040814
+FunctionEnd
+
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
 Function un.ConfirmShow
+    Call un.ApplyDarkTheme
     FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
     ${If} $(^RTL) == 1
       System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE}|${WS_EX_LAYOUTRTL},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 50,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
@@ -373,6 +482,35 @@ FunctionEnd
 {{#each language_files}}
   !include "{{this}}"
 {{/each}}
+
+; Custom Russian translations to fix any missing strings
+LangString older ${LANG_RUSSIAN} "более старая"
+LangString unknown ${LANG_RUSSIAN} "неизвестная"
+LangString alreadyInstalled ${LANG_RUSSIAN} "Обслуживание программы"
+LangString chooseMaintenanceOption ${LANG_RUSSIAN} "Выберите необходимое действие:"
+LangString alreadyInstalledLong ${LANG_RUSSIAN} "Battleverse Launcher уже установлен на этом компьютере.$\r$\n$\r$\nВыберите один из вариантов ниже для продолжения:"
+LangString addOrReinstall ${LANG_RUSSIAN} "Переустановить / обновить компоненты лаунчера (Рекомендуется)"
+LangString uninstallApp ${LANG_RUSSIAN} "Удалить Battleverse Launcher с этого компьютера"
+LangString olderOrUnknownVersionInstalled ${LANG_RUSSIAN} "Обнаружена установленная версия Battleverse Launcher.$\r$\n$\r$\nВыберите действие:"
+LangString uninstallBeforeInstalling ${LANG_RUSSIAN} "Обновить и перезаписать файлы лаунчера (Рекомендуется)"
+LangString dontUninstall ${LANG_RUSSIAN} "Установить в отдельную директорию"
+LangString dontUninstallDowngrade ${LANG_RUSSIAN} "Оставить текущую версию"
+LangString choowHowToInstall ${LANG_RUSSIAN} "Выберите параметры обновления:"
+LangString newerVersionInstalled ${LANG_RUSSIAN} "На вашем компьютере установлена более новая версия."
+LangString unableToUninstall ${LANG_RUSSIAN} "Не удалось удалить предыдущую версию приложения."
+LangString createDesktop ${LANG_RUSSIAN} "Создать ярлык на Рабочем столе"
+LangString deleteAppData ${LANG_RUSSIAN} "Удалить временные файлы и кэш Battleverse Launcher"
+LangString webview2Downloading ${LANG_RUSSIAN} "Загрузка Microsoft Edge WebView2..."
+LangString webview2DownloadSuccess ${LANG_RUSSIAN} "WebView2 успешно загружен."
+LangString webview2DownloadError ${LANG_RUSSIAN} "Ошибка при загрузке WebView2."
+LangString webview2AbortError ${LANG_RUSSIAN} "Установка прервана из-за ошибки WebView2."
+LangString installingWebview2 ${LANG_RUSSIAN} "Установка Microsoft Edge WebView2..."
+LangString webview2InstallSuccess ${LANG_RUSSIAN} "WebView2 успешно установлен."
+LangString webview2InstallError ${LANG_RUSSIAN} "Ошибка установки WebView2."
+LangString appRunningOkKill ${LANG_RUSSIAN} "Лаунчер Battleverse сейчас запущен. Закрыть его для продолжения?"
+LangString appRunning ${LANG_RUSSIAN} "Battleverse Launcher запущен. Закройте его перед установкой."
+LangString failedToKillApp ${LANG_RUSSIAN} "Не удалось закрыть запущенный процесс Battleverse."
+LangString silentDowngrades ${LANG_RUSSIAN} "Понижение версии не поддерживается в тихом режиме."
 
 !macro SetContext
   !if "${INSTALLMODE}" == "currentUser"
