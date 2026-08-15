@@ -131,16 +131,24 @@ Function ApplyDarkTheme
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
   FindWindow $0 "#32770" "" $HWNDPARENT
-  SetCtlColors $HWNDPARENT 0xF8FAFC 0x040814
-  SetCtlColors $0 0xF8FAFC 0x040814
+  SetCtlColors $HWNDPARENT 0xF8FAFC 0x030712
+  SetCtlColors $0 0xF8FAFC 0x030712
   GetDlgItem $1 $HWNDPARENT 1034
-  SetCtlColors $1 0x64748B 0x040814
+  SetCtlColors $1 0x64748B 0x030712
   GetDlgItem $1 $HWNDPARENT 1037
-  SetCtlColors $1 0xFF7700 0x040814
+  SetCtlColors $1 0xFF7700 0x030712
   GetDlgItem $1 $HWNDPARENT 1038
-  SetCtlColors $1 0x93C5FD 0x040814
+  SetCtlColors $1 0x93C5FD 0x030712
   GetDlgItem $1 $HWNDPARENT 1028
-  SetCtlColors $1 0xF8FAFC 0x040814
+  SetCtlColors $1 0xF8FAFC 0x030712
+  
+  ; Navigation buttons styling
+  GetDlgItem $1 $HWNDPARENT 1
+  SetCtlColors $1 0xFFFFFF 0x1E293B
+  GetDlgItem $1 $HWNDPARENT 2
+  SetCtlColors $1 0x94A3B8 0x0F172A
+  GetDlgItem $1 $HWNDPARENT 3
+  SetCtlColors $1 0x94A3B8 0x0F172A
 FunctionEnd
 
 Function WelcomePageShow
@@ -448,8 +456,14 @@ Function un.ApplyDarkTheme
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
   System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
   FindWindow $0 "#32770" "" $HWNDPARENT
-  SetCtlColors $HWNDPARENT 0xF8FAFC 0x040814
-  SetCtlColors $0 0xF8FAFC 0x040814
+  SetCtlColors $HWNDPARENT 0xF8FAFC 0x030712
+  SetCtlColors $0 0xF8FAFC 0x030712
+  GetDlgItem $1 $HWNDPARENT 1
+  SetCtlColors $1 0xFFFFFF 0x1E293B
+  GetDlgItem $1 $HWNDPARENT 2
+  SetCtlColors $1 0x94A3B8 0x0F172A
+  GetDlgItem $1 $HWNDPARENT 3
+  SetCtlColors $1 0x94A3B8 0x0F172A
 FunctionEnd
 
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
