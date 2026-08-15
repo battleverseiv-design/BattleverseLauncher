@@ -768,7 +768,15 @@ async fn launch_game(
     
     send_progress("ПОДГОТОВКА СРЕДЫ...", 10, 100);
     
-    // Find java.exe under mc_dir/runtime/...
+    // Find javaw.exe / java.exe under mc_dir/runtime/...
+    let javaw_exe = Path::new(&mc_dir)
+        .join("runtime")
+        .join("java-runtime-gamma")
+        .join("windows-x64")
+        .join("java-runtime-gamma")
+        .join("bin")
+        .join("javaw.exe");
+        
     let java_exe = Path::new(&mc_dir)
         .join("runtime")
         .join("java-runtime-gamma")
@@ -777,10 +785,12 @@ async fn launch_game(
         .join("bin")
         .join("java.exe");
         
-    let java_path = if java_exe.exists() {
+    let java_path = if javaw_exe.exists() {
+        javaw_exe.to_string_lossy().to_string()
+    } else if java_exe.exists() {
         java_exe.to_string_lossy().to_string()
     } else {
-        "java".to_string() // fallback to system Java
+        "javaw".to_string() // fallback to system Java
     };
     
     // Construct classpath
@@ -830,8 +840,6 @@ async fn launch_game(
     }
     
     let classpath = jars.join(";");
-    append_log(&mc_dir_path, "launcher_debug.log", &format!("Всего Jar-файлов в classpath: {}", jars.len()));
-    
     // Build arguments
     send_progress("НАСТРОЙКА АРГУМЕНТОВ...", 70, 100);
     
@@ -839,7 +847,37 @@ async fn launch_game(
     
     // Memory settings
     args.push(format!("-Xmx{}M", ram_mb));
-    args.push("-Xms512M".to_string());
+    args.push(format!("-Xms{}M", ram_mb.min(2048)));
+    
+    // Custom Battleverse & Mojang Auth/Telemetry settings
+    args.push("-Dminecraft.api.auth.host=http://0.0.0.0".to_string());
+    args.push("-Dminecraft.api.account.host=http://0.0.0.0".to_string());
+    args.push("-Dminecraft.api.services.host=http://0.0.0.0".to_string());
+    args.push("-Dminecraft.telemetry.disable=true".to_string());
+    
+    if ram_gb >= 6 {
+        args.push("-XX:+UseZGC".to_string());
+        args.push("-XX:+ZProactive".to_string());
+        args.push("-XX:ZUncommitDelay=300".to_string());
+    } else {
+        args.push("-XX:+UseG1GC".to_string());
+        args.push("-XX:+ParallelRefProcEnabled".to_string());
+        args.push("-XX:MaxGCPauseMillis=200".to_string());
+        args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+        args.push("-XX:+DisableExplicitGC".to_string());
+        args.push("-XX:G1NewSizePercent=30".to_string());
+        args.push("-XX:G1MaxNewSizePercent=40".to_string());
+        args.push("-XX:G1HeapRegionSize=8M".to_string());
+        args.push("-XX:G1ReservePercent=20".to_string());
+        args.push("-XX:G1HeapWastePercent=5".to_string());
+        args.push("-XX:G1MixedGCCountTarget=4".to_string());
+        args.push("-XX:InitiatingHeapOccupancyPercent=15".to_string());
+        args.push("-XX:G1MixedGCLiveThresholdPercent=90".to_string());
+        args.push("-XX:G1RSetUpdatingPauseTimePercent=5".to_string());
+        args.push("-XX:SurvivorRatio=32".to_string());
+        args.push("-XX:+PerfDisableSharedMem".to_string());
+        args.push("-XX:MaxTenuringThreshold=1".to_string());
+    }
     
     // Load JVM args dynamically from JSON
     let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
