@@ -99,12 +99,14 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; installer sidebar image
 !if "${SIDEBARIMAGE}" != ""
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
+  !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
 !endif
 
 ; installer header image
 !if "${HEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE
   !define MUI_HEADERIMAGE_BITMAP  "${HEADERIMAGE}"
+  !define MUI_HEADERIMAGE_UNBITMAP "${HEADERIMAGE}"
 !endif
 
 ; Define registry key to store installer language
@@ -114,6 +116,8 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
+!define MUI_WELCOMEPAGE_TITLE "Установка Battleverse Launcher"
+!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft:$\r$\n  • Реалистичная баллистика и физика оружия$\r$\n  • Уникальные классы бойцов и спецснаряжение$\r$\n  • Динамичные командные бои (формат 4 игрока)$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_WELCOME
 
@@ -298,7 +302,8 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
-; 5. Choose install directoy page
+; 5. Choose install directory page
+!define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку. Для клиента игры, ресурспаков и модов требуется около 1.0 ГБ свободного места на диске.$\r$\n$\r$\nЧтобы выбрать другую папку, нажмите «Обзор»."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_DIRECTORY
 
@@ -315,13 +320,18 @@ Var AppStartMenuFolder
 ; Don't auto jump to finish page after installation page,
 ; because the installation page has useful info that can be used debug any issues with the installer.
 !define MUI_FINISHPAGE_NOAUTOCLOSE
+!define MUI_FINISHPAGE_TITLE "Установка Battleverse Launcher завершена"
+!define MUI_FINISHPAGE_TEXT "Лаунчер Battleverse успешно установлен на ваш компьютер.$\r$\n$\r$\nВы готовы к высадке на арену!$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/"
 ; Use show readme button in the finish page as a button create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "Создать ярлык на Рабочем столе"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN
+!define MUI_FINISHPAGE_RUN_TEXT "Запустить Battleverse Launcher сейчас"
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
+!define MUI_FINISHPAGE_LINK "Перейти на официальный сайт Battleverse IV"
+!define MUI_FINISHPAGE_LINK_LOCATION "https://battleverseiv.netlify.app/"
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
 
@@ -541,6 +551,7 @@ SectionEnd
 
 Section Install
   SetOutPath $INSTDIR
+  AddSize 1048576 ; ~1.0 GB (1024 MB) for game client, assets, Java runtime and mods
 
   !insertmacro CheckIfAppIsRunning
 
@@ -587,7 +598,7 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" 1048576
 
   ; Create start menu shortcut (GUI)
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
