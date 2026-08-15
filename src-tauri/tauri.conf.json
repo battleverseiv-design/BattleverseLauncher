@@ -32,7 +32,6 @@
         "nsis": {
           "template": "./installer.nsi",
           "installerIcon": "icons/icon.ico",
-          "headerImage": "./installer_header.bmp",
           "sidebarImage": "./installer_sidebar.bmp",
           "languages": ["Russian"],
           "displayLanguageSelector": false
