@@ -971,7 +971,7 @@ async fn launch_game(
     mc_process_cmd.stderr(std::process::Stdio::from(log_file_err));
     
     #[cfg(target_os = "windows")]
-    mc_process_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+    mc_process_cmd.creation_flags(0x00000200); // CREATE_NEW_PROCESS_GROUP
     
     let child = mc_process_cmd.spawn();
     match child {
