@@ -845,9 +845,10 @@ async fn launch_game(
     
     let mut args = Vec::new();
     
-    // Memory settings
-    args.push(format!("-Xmx{}M", ram_mb));
-    args.push(format!("-Xms{}M", ram_mb.min(2048)));
+    // Memory settings - safe allocation to prevent Windows 1455 pagefile commit errors
+    let safe_ram_mb = if ram_mb > 5120 { 5120 } else { ram_mb.max(3072) };
+    args.push(format!("-Xmx{}M", safe_ram_mb));
+    args.push("-Xms1024M".to_string());
     
     // Custom Battleverse & Mojang Auth/Telemetry settings
     args.push("-Dminecraft.api.auth.host=http://0.0.0.0".to_string());
@@ -855,29 +856,16 @@ async fn launch_game(
     args.push("-Dminecraft.api.services.host=http://0.0.0.0".to_string());
     args.push("-Dminecraft.telemetry.disable=true".to_string());
     
-    if ram_gb >= 6 {
-        args.push("-XX:+UseZGC".to_string());
-        args.push("-XX:+ZProactive".to_string());
-        args.push("-XX:ZUncommitDelay=300".to_string());
-    } else {
-        args.push("-XX:+UseG1GC".to_string());
-        args.push("-XX:+ParallelRefProcEnabled".to_string());
-        args.push("-XX:MaxGCPauseMillis=200".to_string());
-        args.push("-XX:+UnlockExperimentalVMOptions".to_string());
-        args.push("-XX:+DisableExplicitGC".to_string());
-        args.push("-XX:G1NewSizePercent=30".to_string());
-        args.push("-XX:G1MaxNewSizePercent=40".to_string());
-        args.push("-XX:G1HeapRegionSize=8M".to_string());
-        args.push("-XX:G1ReservePercent=20".to_string());
-        args.push("-XX:G1HeapWastePercent=5".to_string());
-        args.push("-XX:G1MixedGCCountTarget=4".to_string());
-        args.push("-XX:InitiatingHeapOccupancyPercent=15".to_string());
-        args.push("-XX:G1MixedGCLiveThresholdPercent=90".to_string());
-        args.push("-XX:G1RSetUpdatingPauseTimePercent=5".to_string());
-        args.push("-XX:SurvivorRatio=32".to_string());
-        args.push("-XX:+PerfDisableSharedMem".to_string());
-        args.push("-XX:MaxTenuringThreshold=1".to_string());
-    }
+    // Stable G1GC parameters
+    args.push("-XX:+UseG1GC".to_string());
+    args.push("-XX:+ParallelRefProcEnabled".to_string());
+    args.push("-XX:MaxGCPauseMillis=200".to_string());
+    args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+    args.push("-XX:+DisableExplicitGC".to_string());
+    args.push("-XX:G1NewSizePercent=20".to_string());
+    args.push("-XX:G1MaxNewSizePercent=30".to_string());
+    args.push("-XX:G1HeapRegionSize=8M".to_string());
+    args.push("-XX:G1ReservePercent=15".to_string());
     
     // Load JVM args dynamically from JSON
     let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
