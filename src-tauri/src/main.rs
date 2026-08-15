@@ -826,8 +826,12 @@ async fn launch_game(
 
 #[tauri::command]
 fn check_local_version(mc_dir: String, remote_version: String) -> String {
-    let version_file = Path::new(&mc_dir).join("modpack_version.txt");
-    if !version_file.exists() {
+    let mc_dir_path = Path::new(&mc_dir);
+    let libraries_dir = mc_dir_path.join("libraries");
+    let versions_dir = mc_dir_path.join("versions");
+    let version_file = mc_dir_path.join("modpack_version.txt");
+    
+    if !libraries_dir.exists() || !versions_dir.exists() || !version_file.exists() {
         return "INSTALL".to_string();
     }
     match fs::read_to_string(version_file) {
