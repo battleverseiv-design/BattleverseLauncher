@@ -218,44 +218,37 @@ async function checkGameVersion() {
   if (!config.auth_token) {
     launchBtn.disabled = true;
     launchBtn.innerText = "ТРЕБУЕТСЯ ВХОД";
+    launchBtn.style.background = "";
+    launchBtn.style.boxShadow = "";
     return;
   }
 
   launchBtn.disabled = false;
 
-  // We can write a file checks directly using JS? No, file read is done in Rust or via Tauri path check.
-  // To keep things simple, let's ask Rust if the version txt exists or read it.
-  // Wait, we can pass version check logic to Rust or let JS call a simple check.
-  // Actually, we can check by trying to read the file `modpack_version.txt` inside the mc_dir.
-  // But wait! We can easily check it by running a quick Tauri command, or we can write a quick helper inside main.rs.
-  // Since we want to keep it simple, we can implement it as a tauri command, or write config comparison in Rust directly.
-  // Let's call a command in Rust: check_modpack_version(mc_dir, remote_version)
-  // Let's create this command in Rust. Wait, we'll implement it shortly. For now, let's assume we invoke check_modpack_version.
-  // Wait, we can just run a quick custom check or we can make a Rust invoke! Let's do a Rust invoke:
   try {
-    // We'll write the Rust command `check_local_version(mc_dir: String, remote_version: String)`
-    // Returns: "LAUNCH" (up to date), "INSTALL" (empty), "UPDATE" (outdated)
     const remoteV = remoteConfig.version || "1.0";
     const status = await invoke("check_local_version", { mcDir: config.mc_dir, remoteVersion: remoteV });
     actionType = status;
     
     if (actionType === "INSTALL") {
       launchBtn.innerText = "УСТАНОВИТЬ";
-      launchBtn.style.background = "var(--accent)";
-      launchBtn.style.boxShadow = "0 0 20px rgba(0, 240, 255, 0.2)";
+      launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
+      launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
     } else if (actionType === "UPDATE") {
       launchBtn.innerText = "ОБНОВИТЬ";
-      launchBtn.style.background = "var(--purple)";
-      launchBtn.style.boxShadow = "0 0 20px rgba(161, 0, 255, 0.2)";
+      launchBtn.style.background = "linear-gradient(135deg, #3b82f6, var(--orange))";
+      launchBtn.style.boxShadow = "0 0 20px rgba(59, 130, 246, 0.35)";
     } else {
       launchBtn.innerText = "ЗАПУСТИТЬ";
-      launchBtn.style.background = "var(--success)";
-      launchBtn.style.boxShadow = "0 0 20px rgba(0, 255, 136, 0.15)";
+      launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
+      launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
     }
   } catch (err) {
     console.error("Version check error:", err);
-    actionType = "LAUNCH";
-    launchBtn.innerText = "ЗАПУСТИТЬ";
+    actionType = "INSTALL";
+    launchBtn.innerText = "УСТАНОВИТЬ";
+    launchBtn.style.background = "linear-gradient(135deg, var(--orange), var(--orange-glow))";
+    launchBtn.style.boxShadow = "0 0 20px rgba(var(--orange-rgb), 0.35)";
   }
 }
 
@@ -448,8 +441,16 @@ launchBtn.onclick = async () => {
   launchBtn.innerText = "ПОДГОТОВКА...";
 
   try {
-    // 1. Install or update modpack if needed
+    // 1. Double check if local files exist
+    const remoteV = remoteConfig.version || "1.0";
+    const currentStatus = await invoke("check_local_version", { mcDir: config.mc_dir, remoteVersion: remoteV });
+    if (currentStatus === "INSTALL" || currentStatus === "UPDATE") {
+      actionType = currentStatus;
+    }
+
+    // 2. Install or update modpack if needed
     if (actionType === "INSTALL" || actionType === "UPDATE") {
+      launchBtn.innerText = actionType === "INSTALL" ? "УСТАНОВКА..." : "ОБНОВЛЕНИЕ...";
       const ignoreFiles = remoteConfig.ignore_update_files || ["options.txt", "servers.dat"];
       await invoke("download_and_install_pack", {
         downloadUrl: remoteConfig.download_url,
@@ -458,17 +459,19 @@ launchBtn.onclick = async () => {
       });
       
       // Save local version file
-      await invoke("write_version_file", { mcDir: config.mc_dir, version: remoteConfig.version || "1.0" });
+      await invoke("write_version_file", { mcDir: config.mc_dir, version: remoteV });
       actionType = "LAUNCH";
     }
 
-    // 2. Prepare join on API
+    launchBtn.innerText = "ЗАПУСК...";
+
+    // 3. Prepare join on API
     await invoke("prepare_join", {
       apiUrl: remoteConfig.api_base_url || "https://battleverseiv.netlify.app/api",
       token: config.auth_token
     });
 
-    // 3. Launch Minecraft Java
+    // 4. Launch Minecraft Java
     await invoke("launch_game", {
       mcDir: config.mc_dir,
       mcVersion: remoteConfig.mc_version || "1.20.1",
@@ -479,7 +482,7 @@ launchBtn.onclick = async () => {
 
   } catch (err) {
     console.error("Launch error:", err);
-    alert(`Ошибка при запуске: ${err}`);
+    alert(`Ошибка: ${err}`);
     isLaunching = false;
     checkGameVersion();
   }
