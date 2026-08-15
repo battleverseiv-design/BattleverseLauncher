@@ -110,62 +110,16 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
   !define MUI_HEADERIMAGE_UNBITMAP "${HEADERIMAGE}"
 !endif
 
-; Full Dark Theme Configuration
-!define MUI_BGCOLOR "040814"
-!define MUI_TEXTCOLOR "F8FAFC"
-!define MUI_HEADER_TRANSPARENT_TEXT
-
 ; Define registry key to store installer language
 !define MUI_LANGDLL_REGISTRY_ROOT "HKCU"
 !define MUI_LANGDLL_REGISTRY_KEY "${MANUPRODUCTKEY}"
 !define MUI_LANGDLL_REGISTRY_VALUENAME "Installer Language"
-
-!define MUI_CUSTOMFUNCTION_GUIINIT CustomGUIInit
-
-; Helper to apply Windows Dark Mode and Dark Backgrounds
-Function CustomGUIInit
-  Call ApplyDarkTheme
-FunctionEnd
-
-Function ApplyDarkTheme
-  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
-  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  SetCtlColors $HWNDPARENT 0xF8FAFC 0x030712
-  SetCtlColors $0 0xF8FAFC 0x030712
-  GetDlgItem $1 $HWNDPARENT 1034
-  SetCtlColors $1 0x64748B 0x030712
-  GetDlgItem $1 $HWNDPARENT 1037
-  SetCtlColors $1 0xFF7700 0x030712
-  GetDlgItem $1 $HWNDPARENT 1038
-  SetCtlColors $1 0x93C5FD 0x030712
-  GetDlgItem $1 $HWNDPARENT 1028
-  SetCtlColors $1 0xF8FAFC 0x030712
-  
-  ; Navigation buttons styling
-  GetDlgItem $1 $HWNDPARENT 1
-  SetCtlColors $1 0xFFFFFF 0x1E293B
-  GetDlgItem $1 $HWNDPARENT 2
-  SetCtlColors $1 0x94A3B8 0x0F172A
-  GetDlgItem $1 $HWNDPARENT 3
-  SetCtlColors $1 0x94A3B8 0x0F172A
-FunctionEnd
-
-Function WelcomePageShow
-  Call ApplyDarkTheme
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  GetDlgItem $1 $0 1200
-  SetCtlColors $1 0xFF7700 0x040814
-  GetDlgItem $1 $0 1000
-  SetCtlColors $1 0xF8FAFC 0x040814
-FunctionEnd
 
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
 !define MUI_WELCOMEPAGE_TITLE "Установка Battleverse Launcher"
 !define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft:$\r$\n  • Реалистичная баллистика и физика оружия$\r$\n  • Уникальные классы бойцов и спецснаряжение$\r$\n  • Захватывающие бои на выживание: останься последним выжившим$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-!define MUI_PAGE_CUSTOMFUNCTION_SHOW WelcomePageShow
 !insertmacro MUI_PAGE_WELCOME
 
 ; 2. License Page (if defined)
@@ -274,26 +228,19 @@ Function PageReinstall
 
   Call SkipIfPassive
 
-  Call ApplyDarkTheme
-
   nsDialogs::Create 1018
   Pop $R4
   ${IfThen} $(^RTL) == 1 ${|} nsDialogs::SetRTL $(^RTL) ${|}
 
-  SetCtlColors $R4 0xF8FAFC 0x040814
-
-  ${NSD_CreateLabel} 0 0 100% 36u $R1
+  ${NSD_CreateLabel} 0 0 100% 28u $R1
   Pop $R1
-  SetCtlColors $R1 0xF8FAFC 0x040814
 
-  ${NSD_CreateRadioButton} 15u 46u -15u 14u $R2
+  ${NSD_CreateRadioButton} 20u 45u -20u 12u $R2
   Pop $R2
-  SetCtlColors $R2 0xFF9D42 0x040814
   ${NSD_OnClick} $R2 PageReinstallUpdateSelection
 
-  ${NSD_CreateRadioButton} 15u 66u -15u 14u $R3
+  ${NSD_CreateRadioButton} 20u 65u -20u 12u $R3
   Pop $R3
-  SetCtlColors $R3 0xF8FAFC 0x040814
   ; disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
     ${IfThen} $R0 == -1 ${|} EnableWindow $R3 0 ${|}
@@ -367,25 +314,9 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
-Function DirectoryPageShow
-  Call ApplyDarkTheme
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  GetDlgItem $1 $0 1006
-  SetCtlColors $1 0xF8FAFC 0x040814
-  GetDlgItem $1 $0 1019
-  SetCtlColors $1 0x93C5FD 0x040814
-  GetDlgItem $1 $0 1020
-  SetCtlColors $1 0x93C5FD 0x040814
-  GetDlgItem $1 $0 1023
-  SetCtlColors $1 0xFFFFFF 0x0A1530
-  GetDlgItem $1 $0 1024
-  SetCtlColors $1 0xF8FAFC 0x040814
-FunctionEnd
-
 ; 5. Choose install directory page
 !define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку. Для клиента игры, ресурспаков и модов требуется около 1.0 ГБ свободного места на диске.$\r$\n$\r$\nЧтобы выбрать другую папку, нажмите «Обзор»."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-!define MUI_PAGE_CUSTOMFUNCTION_SHOW DirectoryPageShow
 !insertmacro MUI_PAGE_DIRECTORY
 
 ; 6. Start menu shortcut page
@@ -393,33 +324,8 @@ FunctionEnd
 Var AppStartMenuFolder
 !insertmacro MUI_PAGE_STARTMENU Application $AppStartMenuFolder
 
-Function InstFilesPageShow
-  Call ApplyDarkTheme
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  GetDlgItem $1 $0 1006
-  SetCtlColors $1 0xF8FAFC 0x040814
-  GetDlgItem $1 $0 1016
-  SetCtlColors $1 0x93C5FD 0x060E22
-FunctionEnd
-
 ; 7. Installation page
-!define MUI_PAGE_CUSTOMFUNCTION_SHOW InstFilesPageShow
 !insertmacro MUI_PAGE_INSTFILES
-
-Function FinishPageShow
-  Call ApplyDarkTheme
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  GetDlgItem $1 $0 1200
-  SetCtlColors $1 0xFF7700 0x040814
-  GetDlgItem $1 $0 1000
-  SetCtlColors $1 0xF8FAFC 0x040814
-  GetDlgItem $1 $0 1201
-  SetCtlColors $1 0xFF9D42 0x040814
-  GetDlgItem $1 $0 1203
-  SetCtlColors $1 0xFF9D42 0x040814
-  GetDlgItem $1 $0 1028
-  SetCtlColors $1 0x38BDF8 0x040814
-FunctionEnd
 
 ; 8. Finish page
 ;
@@ -439,7 +345,6 @@ FunctionEnd
 !define MUI_FINISHPAGE_LINK "Перейти на официальный сайт Battleverse IV"
 !define MUI_FINISHPAGE_LINK_LOCATION "https://battleverseiv.netlify.app/"
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
-!define MUI_PAGE_CUSTOMFUNCTION_SHOW FinishPageShow
 !insertmacro MUI_PAGE_FINISH
 
 Function RunMainBinary
@@ -452,23 +357,8 @@ Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
 !define /ifndef WS_EX_LAYOUTRTL         0x00400000
 
-Function un.ApplyDarkTheme
-  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 20, *i 1, i 4)'
-  System::Call 'dwmapi::DwmSetWindowAttribute(p $HWNDPARENT, i 19, *i 1, i 4)'
-  FindWindow $0 "#32770" "" $HWNDPARENT
-  SetCtlColors $HWNDPARENT 0xF8FAFC 0x030712
-  SetCtlColors $0 0xF8FAFC 0x030712
-  GetDlgItem $1 $HWNDPARENT 1
-  SetCtlColors $1 0xFFFFFF 0x1E293B
-  GetDlgItem $1 $HWNDPARENT 2
-  SetCtlColors $1 0x94A3B8 0x0F172A
-  GetDlgItem $1 $HWNDPARENT 3
-  SetCtlColors $1 0x94A3B8 0x0F172A
-FunctionEnd
-
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
 Function un.ConfirmShow
-    Call un.ApplyDarkTheme
     FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
     ${If} $(^RTL) == 1
       System::Call 'USER32::CreateWindowEx(i${__NSD_CheckBox_EXSTYLE}|${WS_EX_LAYOUTRTL},t"${__NSD_CheckBox_CLASS}",t "$(deleteAppData)",i${__NSD_CheckBox_STYLE},i 50,i 100,i 400, i 25,i$1,i0,i0,i0)i.s'
