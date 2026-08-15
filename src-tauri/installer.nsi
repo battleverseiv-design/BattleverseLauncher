@@ -553,6 +553,7 @@ Section WebView2
 SectionEnd
 
 !macro CheckIfAppIsRunning
+  ExecWait 'taskkill /F /IM "${MAINBINARYNAME}.exe"'
   !if "${INSTALLMODE}" == "currentUser"
     nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
   !else
@@ -563,6 +564,7 @@ SectionEnd
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
+        ExecWait 'taskkill /F /IM "${MAINBINARYNAME}.exe"'
         !if "${INSTALLMODE}" == "currentUser"
           nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
         !else
