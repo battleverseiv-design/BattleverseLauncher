@@ -446,6 +446,10 @@ Function .onInit
 
   !insertmacro SetContext
 
+  ; Terminate any previous instances
+  nsExec::Exec 'taskkill /F /IM BattleverseLauncher.exe'
+  nsExec::Exec 'taskkill /F /IM mc_helper.exe'
+
   ${If} $INSTDIR == ""
     ; Set default install location
     !if "${INSTALLMODE}" == "perMachine"
@@ -594,6 +598,11 @@ SectionEnd
 !macroend
 
 Section Install
+  ; Ensure all processes are closed before writing files
+  nsExec::Exec 'taskkill /F /IM BattleverseLauncher.exe'
+  nsExec::Exec 'taskkill /F /IM mc_helper.exe'
+  Sleep 500
+
   SetOutPath $INSTDIR
   AddSize 1048576 ; ~1.0 GB (1024 MB) for game client, assets, Java runtime and mods
 
