@@ -26,20 +26,12 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "WebView2Loader.dll",
-        "mc_helper.exe"
+        "target/release/WebView2Loader.dll"
       ],
       "windows": {
-        "webviewInstallMode": {
-          "type": "downloadBootstrapper",
-          "silent": true
-        },
         "nsis": {
           "template": "./installer.nsi",
-          "installerIcon": "icons/icon.ico",
-          "sidebarImage": "./installer_sidebar.bmp",
-          "languages": ["Russian"],
-          "displayLanguageSelector": false
+          "installerIcon": "icons/icon.ico"
         }
       }
     },
