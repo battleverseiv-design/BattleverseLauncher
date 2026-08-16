@@ -900,9 +900,8 @@ async fn launch_game(
             "javaw".to_string()
         };
         
-        // Memory settings - safe allocation to prevent Windows 1455 pagefile commit errors
-        let safe_ram_mb = if ram_mb > 5120 { 5120 } else { ram_mb.max(3072) };
-        args.push(format!("-Xmx{}M", safe_ram_mb));
+        // Memory settings (Rust fallback - mc_helper handles dynamic capping when available)
+        args.push(format!("-Xmx{}M", ram_mb));
         args.push("-Xms1024M".to_string());
         
         // Custom Battleverse & Mojang Auth/Telemetry settings
