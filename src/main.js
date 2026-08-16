@@ -233,25 +233,29 @@ async function checkGameVersion() {
   // Let's create this command in Rust. Wait, we'll implement it shortly. For now, let's assume we invoke check_modpack_version.
   // Wait, we can just run a quick custom check or we can make a Rust invoke! Let's do a Rust invoke:
   try {
+    // We'll write the Rust command `check_local_version(mc_dir: String, remote_version: String)`
+    // Returns: "LAUNCH" (up to date), "INSTALL" (empty), "UPDATE" (outdated)
     const remoteV = remoteConfig.version || "1.0";
     const status = await invoke("check_local_version", { mcDir: config.mc_dir, remoteVersion: remoteV });
     actionType = status;
     
-    launchBtn.style.background = "";
-    launchBtn.style.boxShadow = "";
-    launchBtn.style.color = "";
-    
     if (actionType === "INSTALL") {
       launchBtn.innerText = "УСТАНОВИТЬ";
+      launchBtn.style.background = "var(--accent)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(0, 240, 255, 0.2)";
     } else if (actionType === "UPDATE") {
       launchBtn.innerText = "ОБНОВИТЬ";
+      launchBtn.style.background = "var(--purple)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(161, 0, 255, 0.2)";
     } else {
       launchBtn.innerText = "ЗАПУСТИТЬ";
+      launchBtn.style.background = "var(--success)";
+      launchBtn.style.boxShadow = "0 0 20px rgba(0, 255, 136, 0.15)";
     }
   } catch (err) {
     console.error("Version check error:", err);
-    actionType = "INSTALL";
-    launchBtn.innerText = "УСТАНОВИТЬ";
+    actionType = "LAUNCH";
+    launchBtn.innerText = "ЗАПУСТИТЬ";
   }
 }
 
