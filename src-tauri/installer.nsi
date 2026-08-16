@@ -99,15 +99,12 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 ; installer sidebar image
 !if "${SIDEBARIMAGE}" != ""
   !define MUI_WELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
-  !define MUI_UNWELCOMEFINISHPAGE_BITMAP "${SIDEBARIMAGE}"
 !endif
 
 ; installer header image
 !if "${HEADERIMAGE}" != ""
   !define MUI_HEADERIMAGE
-  !define MUI_HEADERIMAGE_RIGHT
   !define MUI_HEADERIMAGE_BITMAP  "${HEADERIMAGE}"
-  !define MUI_HEADERIMAGE_UNBITMAP "${HEADERIMAGE}"
 !endif
 
 ; Define registry key to store installer language
@@ -117,8 +114,6 @@ VIAddVersionKey "ProductVersion" "${VERSION}"
 
 ; Installer pages, must be ordered as they appear
 ; 1. Welcome Page
-!define MUI_WELCOMEPAGE_TITLE "Установка Battleverse Launcher"
-!define MUI_WELCOMEPAGE_TEXT "Добро пожаловать в Мастер установки Battleverse Launcher.$\r$\n$\r$\nBattleVerse IV — Аркадные бои и тактический шутер в Minecraft.$\r$\n$\r$\n• Реалистичная баллистика и уникальные классы$\r$\n• Динамичные бои: останься последним выжившим$\r$\n$\r$\nНажмите «Далее», чтобы продолжить установку."
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_WELCOME
 
@@ -215,17 +210,6 @@ Function PageReinstall
     Abort
   ${EndIf}
 
-  ; Fallback checks if strings are empty
-  ${If} $R1 == ""
-    StrCpy $R1 "Battleverse Launcher уже установлен на этом компьютере.$\r$\nВыберите действие для продолжения:"
-  ${EndIf}
-  ${If} $R2 == ""
-    StrCpy $R2 "Переустановить / обновить компоненты лаунчера"
-  ${EndIf}
-  ${If} $R3 == ""
-    StrCpy $R3 "Удалить Battleverse Launcher с этого компьютера"
-  ${EndIf}
-
   Call SkipIfPassive
 
   nsDialogs::Create 1018
@@ -235,11 +219,11 @@ Function PageReinstall
   ${NSD_CreateLabel} 0 0 100% 24u $R1
   Pop $R1
 
-  ${NSD_CreateRadioButton} 10u 34u -10u 12u $R2
+  ${NSD_CreateRadioButton} 30u 50u -30u 8u $R2
   Pop $R2
   ${NSD_OnClick} $R2 PageReinstallUpdateSelection
 
-  ${NSD_CreateRadioButton} 10u 52u -10u 12u $R3
+  ${NSD_CreateRadioButton} 30u 70u -30u 8u $R3
   Pop $R3
   ; disable this radio button if downgrading and downgrades are disabled
   !if "${ALLOWDOWNGRADES}" == "false"
@@ -314,8 +298,7 @@ Function PageLeaveReinstall
   reinst_done:
 FunctionEnd
 
-; 5. Choose install directory page
-!define MUI_DIRECTORYPAGE_TEXT_TOP "Программа установит Battleverse Launcher в указанную папку (требуется ~1.0 ГБ свободного места). Чтобы выбрать другую папку, нажмите «Обзор»."
+; 5. Choose install directoy page
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_DIRECTORY
 
@@ -332,18 +315,13 @@ Var AppStartMenuFolder
 ; Don't auto jump to finish page after installation page,
 ; because the installation page has useful info that can be used debug any issues with the installer.
 !define MUI_FINISHPAGE_NOAUTOCLOSE
-!define MUI_FINISHPAGE_TITLE "Установка Battleverse Launcher завершена"
-!define MUI_FINISHPAGE_TEXT "Лаунчер Battleverse успешно установлен на ваш компьютер.$\r$\n$\r$\nВы готовы к высадке на арену!$\r$\n$\r$\n🌐 Сайт проекта: https://battleverseiv.netlify.app/"
 ; Use show readme button in the finish page as a button create a desktop shortcut
 !define MUI_FINISHPAGE_SHOWREADME
-!define MUI_FINISHPAGE_SHOWREADME_TEXT "Создать ярлык на Рабочем столе"
+!define MUI_FINISHPAGE_SHOWREADME_TEXT "$(createDesktop)"
 !define MUI_FINISHPAGE_SHOWREADME_FUNCTION CreateDesktopShortcut
 ; Show run app after installation.
 !define MUI_FINISHPAGE_RUN
-!define MUI_FINISHPAGE_RUN_TEXT "Запустить Battleverse Launcher сейчас"
 !define MUI_FINISHPAGE_RUN_FUNCTION RunMainBinary
-!define MUI_FINISHPAGE_LINK "Перейти на официальный сайт Battleverse IV"
-!define MUI_FINISHPAGE_LINK_LOCATION "https://battleverseiv.netlify.app/"
 !define MUI_PAGE_CUSTOMFUNCTION_PRE SkipIfPassive
 !insertmacro MUI_PAGE_FINISH
 
@@ -356,7 +334,6 @@ FunctionEnd
 Var DeleteAppDataCheckbox
 Var DeleteAppDataCheckboxState
 !define /ifndef WS_EX_LAYOUTRTL         0x00400000
-
 !define MUI_PAGE_CUSTOMFUNCTION_SHOW un.ConfirmShow
 Function un.ConfirmShow
     FindWindow $1 "#32770" "" $HWNDPARENT ; Find inner dialog
@@ -387,35 +364,6 @@ FunctionEnd
   !include "{{this}}"
 {{/each}}
 
-; Custom Russian translations to fix any missing strings
-LangString older ${LANG_RUSSIAN} "более старая"
-LangString unknown ${LANG_RUSSIAN} "неизвестная"
-LangString alreadyInstalled ${LANG_RUSSIAN} "Обслуживание программы"
-LangString chooseMaintenanceOption ${LANG_RUSSIAN} "Выберите действие:"
-LangString alreadyInstalledLong ${LANG_RUSSIAN} "Battleverse Launcher уже установлен на этом компьютере.$\r$\nВыберите действие для продолжения:"
-LangString addOrReinstall ${LANG_RUSSIAN} "Переустановить / обновить компоненты лаунчера"
-LangString uninstallApp ${LANG_RUSSIAN} "Удалить Battleverse Launcher с этого компьютера"
-LangString olderOrUnknownVersionInstalled ${LANG_RUSSIAN} "Обнаружена установленная версия Battleverse Launcher.$\r$\nВыберите действие:"
-LangString uninstallBeforeInstalling ${LANG_RUSSIAN} "Обновить и перезаписать файлы лаунчера"
-LangString dontUninstall ${LANG_RUSSIAN} "Установить в отдельную папку"
-LangString dontUninstallDowngrade ${LANG_RUSSIAN} "Оставить текущую версию"
-LangString choowHowToInstall ${LANG_RUSSIAN} "Выберите параметры обновления:"
-LangString newerVersionInstalled ${LANG_RUSSIAN} "На вашем компьютере установлена более новая версия."
-LangString unableToUninstall ${LANG_RUSSIAN} "Не удалось удалить предыдущую версию приложения."
-LangString createDesktop ${LANG_RUSSIAN} "Создать ярлык на Рабочем столе"
-LangString deleteAppData ${LANG_RUSSIAN} "Удалить временные файлы и кэш Battleverse Launcher"
-LangString webview2Downloading ${LANG_RUSSIAN} "Загрузка Microsoft Edge WebView2..."
-LangString webview2DownloadSuccess ${LANG_RUSSIAN} "WebView2 успешно загружен."
-LangString webview2DownloadError ${LANG_RUSSIAN} "Ошибка при загрузке WebView2."
-LangString webview2AbortError ${LANG_RUSSIAN} "Установка прервана из-за ошибки WebView2."
-LangString installingWebview2 ${LANG_RUSSIAN} "Установка Microsoft Edge WebView2..."
-LangString webview2InstallSuccess ${LANG_RUSSIAN} "WebView2 успешно установлен."
-LangString webview2InstallError ${LANG_RUSSIAN} "Ошибка установки WebView2."
-LangString appRunningOkKill ${LANG_RUSSIAN} "Лаунчер Battleverse сейчас запущен. Закрыть его для продолжения?"
-LangString appRunning ${LANG_RUSSIAN} "Battleverse Launcher запущен. Закройте его перед установкой."
-LangString failedToKillApp ${LANG_RUSSIAN} "Не удалось закрыть запущенный процесс Battleverse."
-LangString silentDowngrades ${LANG_RUSSIAN} "Понижение версии не поддерживается в тихом режиме."
-
 !macro SetContext
   !if "${INSTALLMODE}" == "currentUser"
     SetShellVarContext current
@@ -445,10 +393,6 @@ Function .onInit
   !endif
 
   !insertmacro SetContext
-
-  ; Terminate any previous instances
-  nsExec::Exec 'taskkill /F /IM BattleverseLauncher.exe'
-  nsExec::Exec 'taskkill /F /IM mc_helper.exe'
 
   ${If} $INSTDIR == ""
     ; Set default install location
@@ -557,7 +501,6 @@ Section WebView2
 SectionEnd
 
 !macro CheckIfAppIsRunning
-  ExecWait 'taskkill /F /IM "${MAINBINARYNAME}.exe"'
   !if "${INSTALLMODE}" == "currentUser"
     nsis_tauri_utils::FindProcessCurrentUser "${MAINBINARYNAME}.exe"
   !else
@@ -568,7 +511,6 @@ SectionEnd
       IfSilent kill 0
       ${IfThen} $PassiveMode != 1 ${|} MessageBox MB_OKCANCEL "$(appRunningOkKill)" IDOK kill IDCANCEL cancel ${|}
       kill:
-        ExecWait 'taskkill /F /IM "${MAINBINARYNAME}.exe"'
         !if "${INSTALLMODE}" == "currentUser"
           nsis_tauri_utils::KillProcessCurrentUser "${MAINBINARYNAME}.exe"
         !else
@@ -598,13 +540,7 @@ SectionEnd
 !macroend
 
 Section Install
-  ; Ensure all processes are closed before writing files
-  nsExec::Exec 'taskkill /F /IM BattleverseLauncher.exe'
-  nsExec::Exec 'taskkill /F /IM mc_helper.exe'
-  Sleep 500
-
   SetOutPath $INSTDIR
-  AddSize 1048576 ; ~1.0 GB (1024 MB) for game client, assets, Java runtime and mods
 
   !insertmacro CheckIfAppIsRunning
 
@@ -619,16 +555,13 @@ Section Install
     File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
-  ; Copy WebView2Loader.dll and mc_helper.exe to main directory if in resources
-  IfFileExists "$INSTDIR\resources\WebView2Loader.dll" 0 +2
-    CopyFiles /SILENT "$INSTDIR\resources\WebView2Loader.dll" "$INSTDIR\WebView2Loader.dll"
-  IfFileExists "$INSTDIR\resources\mc_helper.exe" 0 +2
-    CopyFiles /SILENT "$INSTDIR\resources\mc_helper.exe" "$INSTDIR\mc_helper.exe"
-
   ; Copy external binaries
   {{#each binaries}}
     File /a "/oname={{this}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
+
+  ; Copy WebView2Loader.dll from resources to main directory
+  CopyFiles "$INSTDIR\resources\target\release\WebView2Loader.dll" "$INSTDIR\WebView2Loader.dll"
 
   ; Create uninstaller
   WriteUninstaller "$INSTDIR\uninstall.exe"
@@ -654,7 +587,7 @@ Section Install
   WriteRegStr SHCTX "${UNINSTKEY}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoModify" "1"
   WriteRegDWORD SHCTX "${UNINSTKEY}" "NoRepair" "1"
-  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" 1048576
+  WriteRegDWORD SHCTX "${UNINSTKEY}" "EstimatedSize" "${ESTIMATEDSIZE}"
 
   ; Create start menu shortcut (GUI)
   !insertmacro MUI_STARTMENU_WRITE_BEGIN Application
