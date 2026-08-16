@@ -26,7 +26,8 @@
         "icons/icon.ico"
       ],
       "resources": [
-        "WebView2Loader.dll"
+        "WebView2Loader.dll",
+        "mc_helper.exe"
       ],
       "windows": {
         "webviewInstallMode": {
