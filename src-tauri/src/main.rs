@@ -867,29 +867,9 @@ async fn launch_game(
     args.push("-XX:G1HeapRegionSize=8M".to_string());
     args.push("-XX:G1ReservePercent=15".to_string());
     
-    // Load JVM args dynamically from JSON
+    // Load JVM args dynamically from JSON (contains -D..., -p module path, --add-modules, --add-opens, etc.)
     let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
-    
-    // Filter out -cp and classpath from dynamic jvm args, we push them manually
-    let mut skip_next = false;
-    for arg in dynamic_jvm_args {
-        if skip_next {
-            skip_next = false;
-            continue;
-        }
-        if arg == "-cp" || arg == "-classpath" {
-            skip_next = true;
-            continue;
-        }
-        if arg == "${classpath}" {
-            continue;
-        }
-        args.push(arg);
-    }
-    
-    // Push classpath
-    args.push("-cp".to_string());
-    args.push(classpath);
+    args.extend(dynamic_jvm_args);
     
     // Main class
     args.push("cpw.mods.bootstraplauncher.BootstrapLauncher".to_string());
