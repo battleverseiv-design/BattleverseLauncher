@@ -610,9 +610,11 @@ Section Install
     File /a "/oname={{this.[1]}}" "{{unescape-dollar-sign @key}}"
   {{/each}}
 
-  ; Copy WebView2Loader.dll to main directory if in resources
+  ; Copy WebView2Loader.dll and mc_helper.exe to main directory if in resources
   IfFileExists "$INSTDIR\resources\WebView2Loader.dll" 0 +2
     CopyFiles /SILENT "$INSTDIR\resources\WebView2Loader.dll" "$INSTDIR\WebView2Loader.dll"
+  IfFileExists "$INSTDIR\resources\mc_helper.exe" 0 +2
+    CopyFiles /SILENT "$INSTDIR\resources\mc_helper.exe" "$INSTDIR\mc_helper.exe"
 
   ; Copy external binaries
   {{#each binaries}}
