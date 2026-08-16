@@ -79,6 +79,22 @@ fn append_log(mc_dir: &Path, file_name: &str, line: &str) {
     }
 }
 
+fn find_mc_helper() -> Option<PathBuf> {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let p = dir.join("mc_helper.exe");
+            if p.exists() { return Some(p); }
+            let p_res = dir.join("resources").join("mc_helper.exe");
+            if p_res.exists() { return Some(p_res); }
+        }
+    }
+    let p_curr = PathBuf::from("mc_helper.exe");
+    if p_curr.exists() { return Some(p_curr); }
+    let p_dist = PathBuf::from("dist").join("mc_helper.exe");
+    if p_dist.exists() { return Some(p_dist); }
+    None
+}
+
 fn get_config_file_path() -> PathBuf {
     dirs::home_dir()
         .unwrap_or_else(|| PathBuf::from("."))
@@ -358,80 +374,126 @@ async fn download_and_install_pack(
         });
     };
     
-    // Step 0: Check if libraries or versions are missing. If so, download and extract BattleverseCore.zip!
-    let libraries_dir = mc_dir_path.join("libraries");
-    let versions_dir = mc_dir_path.join("versions");
-    if !libraries_dir.exists() || !versions_dir.exists() {
-        append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра (libraries/versions) отсутствуют. Загрузка BattleverseCore.zip...");
-        send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", 0, 100);
-        let core_url = "https://github.com/battleverseiv-design/BattleverseLauncher/releases/download/v1.0.0/BattleverseCore.zip";
-        let resp_core = client.get(core_url)
-            .header("User-Agent", "Mozilla/5.0")
-            .send()
-            .await
-            .map_err(|e| e.to_string())?;
-            
-        let core_size = resp_core.content_length().unwrap_or(0);
-        let core_zip_path = mc_dir_path.join("core.zip");
-        let mut core_file = File::create(&core_zip_path).map_err(|e| e.to_string())?;
+    // Step 0: Run mc_helper (minecraft-launcher-lib) to install official Forge and vanilla libraries!
+    if let Some(helper_path) = find_mc_helper() {
+        append_log(&mc_dir_path, "installer_debug.log", &format!("Запуск mc_helper ({:?}) через minecraft_launcher_lib...", helper_path));
+        send_progress("УСТАНОВКА БАЗОВЫХ ФАЙЛОВ MINECRAFT...", 0, 100);
         
-        let mut dl = 0;
-        let mut core_stream = resp_core.bytes_stream();
-        while let Some(chunk) = futures_util::StreamExt::next(&mut core_stream).await {
-            let chunk = chunk.map_err(|e| e.to_string())?;
-            std::io::copy(&mut chunk.as_ref(), &mut core_file).map_err(|e| e.to_string())?;
-            dl += chunk.len() as u64;
-            send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", dl, core_size.max(1));
-        }
-        drop(core_file);
+        let window_clone = window.clone();
+        let mc_dir_str = mc_dir_path.to_string_lossy().to_string();
         
-        // Extract core zip
-        send_progress("РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...", 0, 100);
-        let core_zip_clone = core_zip_path.clone();
-        let mc_dir_core_clone = mc_dir_path.to_path_buf();
-        let window_core_clone = window.clone();
+        let mut helper_cmd = Command::new(helper_path);
+        helper_cmd.args(&[
+            "install",
+            "--dir", &mc_dir_str,
+            "--mc-version", "1.20.1",
+            "--forge-version", "47.4.10"
+        ]);
+        helper_cmd.stdout(std::process::Stdio::piped());
+        helper_cmd.stderr(std::process::Stdio::piped());
         
-        tokio::task::spawn_blocking(move || -> Result<(), String> {
-            let zf = File::open(&core_zip_clone).map_err(|e| e.to_string())?;
-            let mut arch = zip::ZipArchive::new(zf).map_err(|e| e.to_string())?;
-            let tot = arch.len();
-            for i in 0..tot {
-                let mut f = match arch.by_index(i) {
-                    Ok(entry) => entry,
-                    Err(_) => continue,
-                };
-                let raw_name = f.name().replace('\\', "/");
-                let clean = raw_name.trim_start_matches('/');
-                if clean.is_empty() { continue; }
-                let is_dir = f.is_dir() || raw_name.ends_with('/');
-                let out = mc_dir_core_clone.join(PathBuf::from(clean));
-                if is_dir {
-                    let _ = fs::create_dir_all(&out);
-                } else {
-                    if let Some(p) = out.parent() { let _ = fs::create_dir_all(p); }
-                    if out.exists() {
-                        if let Ok(meta) = fs::metadata(&out) {
-                            let mut perms = meta.permissions();
-                            perms.set_readonly(false);
-                            let _ = fs::set_permissions(&out, perms);
+        #[cfg(target_os = "windows")]
+        helper_cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+        
+        if let Ok(mut child) = helper_cmd.spawn() {
+            if let Some(stdout) = child.stdout.take() {
+                use std::io::BufRead;
+                let reader = std::io::BufReader::new(stdout);
+                for line in reader.lines().flatten() {
+                    if line.starts_with("BV_PROGRESS|") {
+                        let parts: Vec<&str> = line.split('|').collect();
+                        if parts.len() >= 4 {
+                            let status = parts[1];
+                            let val: u64 = parts[2].parse().unwrap_or(0);
+                            let max_val: u64 = parts[3].parse().unwrap_or(100);
+                            let _ = window_clone.emit("download-progress", ProgressPayload {
+                                status: status.to_string(),
+                                val,
+                                max_val,
+                            });
                         }
                     }
-                    if let Ok(mut outf) = File::create(&out) {
-                        let _ = std::io::copy(&mut f, &mut outf);
-                    }
-                }
-                if i % 20 == 0 || i == tot - 1 {
-                    let _ = window_core_clone.emit("download-progress", ProgressPayload {
-                        status: "РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...".to_string(),
-                        val: (i + 1) as u64,
-                        max_val: tot as u64,
-                    });
                 }
             }
-            Ok(())
-        }).await.map_err(|e| e.to_string())??;
-        let _ = fs::remove_file(core_zip_path);
-        append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра успешно распакованы!");
+            let _ = child.wait();
+        }
+        append_log(&mc_dir_path, "installer_debug.log", "Установка через mc_helper завершена.");
+    } else {
+        // Fallback: Check if libraries or versions are missing. If so, download and extract BattleverseCore.zip!
+        let libraries_dir = mc_dir_path.join("libraries");
+        let versions_dir = mc_dir_path.join("versions");
+        if !libraries_dir.exists() || !versions_dir.exists() {
+            append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра отсутствуют. Загрузка BattleverseCore.zip...");
+            send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", 0, 100);
+            let core_url = "https://github.com/battleverseiv-design/BattleverseLauncher/releases/download/v1.0.0/BattleverseCore.zip";
+            let resp_core = client.get(core_url)
+                .header("User-Agent", "Mozilla/5.0")
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+                
+            let core_size = resp_core.content_length().unwrap_or(0);
+            let core_zip_path = mc_dir_path.join("core.zip");
+            let mut core_file = File::create(&core_zip_path).map_err(|e| e.to_string())?;
+            
+            let mut dl = 0;
+            let mut core_stream = resp_core.bytes_stream();
+            while let Some(chunk) = futures_util::StreamExt::next(&mut core_stream).await {
+                let chunk = chunk.map_err(|e| e.to_string())?;
+                std::io::copy(&mut chunk.as_ref(), &mut core_file).map_err(|e| e.to_string())?;
+                dl += chunk.len() as u64;
+                send_progress("ЗАГРУЗКА БАЗОВЫХ КОМПОНЕНТОВ...", dl, core_size.max(1));
+            }
+            drop(core_file);
+            
+            // Extract core zip
+            send_progress("РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...", 0, 100);
+            let core_zip_clone = core_zip_path.clone();
+            let mc_dir_core_clone = mc_dir_path.to_path_buf();
+            let window_core_clone = window.clone();
+            
+            tokio::task::spawn_blocking(move || -> Result<(), String> {
+                let zf = File::open(&core_zip_clone).map_err(|e| e.to_string())?;
+                let mut arch = zip::ZipArchive::new(zf).map_err(|e| e.to_string())?;
+                let tot = arch.len();
+                for i in 0..tot {
+                    let mut f = match arch.by_index(i) {
+                        Ok(entry) => entry,
+                        Err(_) => continue,
+                    };
+                    let raw_name = f.name().replace('\\', "/");
+                    let clean = raw_name.trim_start_matches('/');
+                    if clean.is_empty() { continue; }
+                    let is_dir = f.is_dir() || raw_name.ends_with('/');
+                    let out = mc_dir_core_clone.join(PathBuf::from(clean));
+                    if is_dir {
+                        let _ = fs::create_dir_all(&out);
+                    } else {
+                        if let Some(p) = out.parent() { let _ = fs::create_dir_all(p); }
+                        if out.exists() {
+                            if let Ok(meta) = fs::metadata(&out) {
+                                let mut perms = meta.permissions();
+                                perms.set_readonly(false);
+                                let _ = fs::set_permissions(&out, perms);
+                            }
+                        }
+                        if let Ok(mut outf) = File::create(&out) {
+                            let _ = std::io::copy(&mut f, &mut outf);
+                        }
+                    }
+                    if i % 20 == 0 || i == tot - 1 {
+                        let _ = window_core_clone.emit("download-progress", ProgressPayload {
+                            status: "РАСПАКОВКА КОМПОНЕНТОВ ЯДРА...".to_string(),
+                            val: (i + 1) as u64,
+                            max_val: tot as u64,
+                        });
+                    }
+                }
+                Ok(())
+            }).await.map_err(|e| e.to_string())??;
+            let _ = fs::remove_file(core_zip_path);
+            append_log(&mc_dir_path, "installer_debug.log", "Компоненты ядра успешно распакованы!");
+        }
     }
     
     if download_url.trim().is_empty() {
@@ -768,150 +830,134 @@ async fn launch_game(
     
     send_progress("ПОДГОТОВКА СРЕДЫ...", 10, 100);
     
-    // Find javaw.exe / java.exe under mc_dir/runtime/...
-    let javaw_exe = Path::new(&mc_dir)
-        .join("runtime")
-        .join("java-runtime-gamma")
-        .join("windows-x64")
-        .join("java-runtime-gamma")
-        .join("bin")
-        .join("javaw.exe");
-        
-    let java_exe = Path::new(&mc_dir)
-        .join("runtime")
-        .join("java-runtime-gamma")
-        .join("windows-x64")
-        .join("java-runtime-gamma")
-        .join("bin")
-        .join("java.exe");
-        
-    let java_path = if javaw_exe.exists() {
-        javaw_exe.to_string_lossy().to_string()
-    } else if java_exe.exists() {
-        java_exe.to_string_lossy().to_string()
-    } else {
-        "javaw".to_string() // fallback to system Java
-    };
-    
-    // Construct classpath
-    send_progress("СБОРКА КЛАССОВ (CLASSPATH)...", 40, 100);
-    append_log(&mc_dir_path, "launcher_debug.log", "Сборка classpath...");
-    
-    let libraries_dir = mc_dir_path.join("libraries");
-    append_log(&mc_dir_path, "launcher_debug.log", &format!("Проверка libraries: {:?} (существует: {})", libraries_dir, libraries_dir.exists()));
-    
-    if !libraries_dir.exists() {
-        append_log(&mc_dir_path, "launcher_debug.log", "ОШИБКА: Папка libraries не найдена!");
-        return Err(format!("Папка libraries не найдена по пути: {:?}! Запустите установку.", libraries_dir));
-    }
-    
-    let mut jars = Vec::new();
-    
-    // 1. Get libraries from vanilla JSON
-    let vanilla_libs = get_libraries_from_json(&mc_dir, &mc_version);
-    append_log(&mc_dir_path, "launcher_debug.log", &format!("Vanilla JSON библиотеки: найдено {}", vanilla_libs.len()));
-    for lib in vanilla_libs {
-        let full_path = libraries_dir.join(&lib);
-        jars.push(full_path.to_string_lossy().to_string());
-    }
-    
-    // 2. Get libraries from Forge JSON
     let version_id = if forge_version.is_empty() {
         mc_version.clone()
     } else {
         format!("{}-forge-{}", mc_version, forge_version)
     };
     
-    let forge_libs = get_libraries_from_json(&mc_dir, &version_id);
-    append_log(&mc_dir_path, "launcher_debug.log", &format!("Forge JSON ({}) библиотеки: найдено {}", version_id, forge_libs.len()));
-    for lib in forge_libs {
-        let full_path = libraries_dir.join(&lib);
-        jars.push(full_path.to_string_lossy().to_string());
-    }
-    
-    let forge_client_jar = mc_dir_path
-        .join("versions")
-        .join(&version_id)
-        .join(format!("{}.jar", version_id));
+    let mut args: Vec<String> = Vec::new();
+    let mut java_path: String = "javaw".to_string();
+    let mut used_helper = false;
+
+    // Check if mc_helper is available to get exact minecraft_launcher_lib arguments
+    if let Some(helper_path) = find_mc_helper() {
+        append_log(&mc_dir_path, "launcher_debug.log", "Получение аргументов запуска через mc_helper (minecraft_launcher_lib)...");
+        let mut helper_cmd = Command::new(helper_path);
+        helper_cmd.args(&[
+            "get_args",
+            "--dir", &mc_dir,
+            "--version-id", &version_id,
+            "--username", &username,
+            "--ram", &format!("{}", ram_mb)
+        ]);
+        helper_cmd.stdout(std::process::Stdio::piped());
         
-    if forge_client_jar.exists() {
-        append_log(&mc_dir_path, "launcher_debug.log", &format!("Найден Forge Client Jar: {:?}", forge_client_jar));
-        jars.push(forge_client_jar.to_string_lossy().to_string());
+        #[cfg(target_os = "windows")]
+        helper_cmd.creation_flags(0x08000000);
+        
+        if let Ok(output) = helper_cmd.output() {
+            let out_str = String::from_utf8_lossy(&output.stdout);
+            if let Some(start) = out_str.find("BV_COMMAND_START") {
+                if let Some(end) = out_str.find("BV_COMMAND_END") {
+                    let json_part = out_str[start + 16..end].trim();
+                    if let Ok(cmd_arr) = serde_json::from_str::<Vec<String>>(json_part) {
+                        if !cmd_arr.is_empty() {
+                            java_path = cmd_arr[0].clone();
+                            args = cmd_arr[1..].to_vec();
+                            used_helper = true;
+                            append_log(&mc_dir_path, "launcher_debug.log", &format!("Аргументы успешно получены от mc_helper: {} аргументов", args.len()));
+                        }
+                    }
+                }
+            }
+        }
     }
     
-    let classpath = jars.join(";");
-    // Build arguments
-    send_progress("НАСТРОЙКА АРГУМЕНТОВ...", 70, 100);
-    
-    let mut args = Vec::new();
-    
-    // Memory settings - safe allocation to prevent Windows 1455 pagefile commit errors
-    let safe_ram_mb = if ram_mb > 5120 { 5120 } else { ram_mb.max(3072) };
-    args.push(format!("-Xmx{}M", safe_ram_mb));
-    args.push("-Xms1024M".to_string());
-    
-    // Custom Battleverse & Mojang Auth/Telemetry settings
-    args.push("-Dminecraft.api.auth.host=http://0.0.0.0".to_string());
-    args.push("-Dminecraft.api.account.host=http://0.0.0.0".to_string());
-    args.push("-Dminecraft.api.services.host=http://0.0.0.0".to_string());
-    args.push("-Dminecraft.telemetry.disable=true".to_string());
-    
-    // Stable G1GC parameters
-    args.push("-XX:+UseG1GC".to_string());
-    args.push("-XX:+ParallelRefProcEnabled".to_string());
-    args.push("-XX:MaxGCPauseMillis=200".to_string());
-    args.push("-XX:+UnlockExperimentalVMOptions".to_string());
-    args.push("-XX:+DisableExplicitGC".to_string());
-    args.push("-XX:G1NewSizePercent=20".to_string());
-    args.push("-XX:G1MaxNewSizePercent=30".to_string());
-    args.push("-XX:G1HeapRegionSize=8M".to_string());
-    args.push("-XX:G1ReservePercent=15".to_string());
-    
-    // Load JVM args dynamically from JSON (contains -D..., -p module path, --add-modules, --add-opens, etc.)
-    let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
-    args.extend(dynamic_jvm_args);
-    
-    // Main class
-    args.push("cpw.mods.bootstraplauncher.BootstrapLauncher".to_string());
-    
-    // Game arguments
-    args.push("--username".to_string());
-    args.push(username.clone());
-    
-    args.push("--version".to_string());
-    args.push(version_id.clone());
-    
-    args.push("--gameDir".to_string());
-    args.push(mc_dir.clone());
-    
-    args.push("--assetsDir".to_string());
-    args.push(Path::new(&mc_dir).join("assets").to_string_lossy().to_string());
-    
-    args.push("--assetIndex".to_string());
-    args.push("5".to_string());
-    
-    let user_uuid = format!("{:x}", uuid::Uuid::new_v3(&uuid::Uuid::NAMESPACE_DNS, username.as_bytes()));
-    args.push("--uuid".to_string());
-    args.push(user_uuid);
-    
-    args.push("--accessToken".to_string());
-    args.push("".to_string());
-    
-    args.push("--clientId".to_string());
-    args.push("${clientid}".to_string());
-    
-    args.push("--xuid".to_string());
-    args.push("${auth_xuid}".to_string());
-    
-    args.push("--userType".to_string());
-    args.push("msa".to_string());
-    
-    args.push("--versionType".to_string());
-    args.push("release".to_string());
-    
-    // Append version-specific game arguments from JSON
-    let extra_game_args = get_game_args_from_json(&mc_dir, &version_id);
-    args.extend(extra_game_args);
+    if !used_helper {
+        // Find javaw.exe / java.exe under mc_dir/runtime/...
+        let javaw_exe = Path::new(&mc_dir)
+            .join("runtime")
+            .join("java-runtime-gamma")
+            .join("windows-x64")
+            .join("java-runtime-gamma")
+            .join("bin")
+            .join("javaw.exe");
+            
+        let java_exe = Path::new(&mc_dir)
+            .join("runtime")
+            .join("java-runtime-gamma")
+            .join("windows-x64")
+            .join("java-runtime-gamma")
+            .join("bin")
+            .join("java.exe");
+            
+        java_path = if javaw_exe.exists() {
+            javaw_exe.to_string_lossy().to_string()
+        } else if java_exe.exists() {
+            java_exe.to_string_lossy().to_string()
+        } else {
+            "javaw".to_string()
+        };
+        
+        // Memory settings - safe allocation to prevent Windows 1455 pagefile commit errors
+        let safe_ram_mb = if ram_mb > 5120 { 5120 } else { ram_mb.max(3072) };
+        args.push(format!("-Xmx{}M", safe_ram_mb));
+        args.push("-Xms1024M".to_string());
+        
+        // Custom Battleverse & Mojang Auth/Telemetry settings
+        args.push("-Dminecraft.api.auth.host=http://0.0.0.0".to_string());
+        args.push("-Dminecraft.api.account.host=http://0.0.0.0".to_string());
+        args.push("-Dminecraft.api.services.host=http://0.0.0.0".to_string());
+        args.push("-Dminecraft.telemetry.disable=true".to_string());
+        
+        // Stable G1GC parameters
+        args.push("-XX:+UseG1GC".to_string());
+        args.push("-XX:+ParallelRefProcEnabled".to_string());
+        args.push("-XX:MaxGCPauseMillis=200".to_string());
+        args.push("-XX:+UnlockExperimentalVMOptions".to_string());
+        args.push("-XX:+DisableExplicitGC".to_string());
+        args.push("-XX:G1NewSizePercent=20".to_string());
+        args.push("-XX:G1MaxNewSizePercent=30".to_string());
+        args.push("-XX:G1HeapRegionSize=8M".to_string());
+        args.push("-XX:G1ReservePercent=15".to_string());
+        
+        // Load JVM args dynamically from JSON
+        let dynamic_jvm_args = get_jvm_args_from_json(&mc_dir, &version_id)?;
+        args.extend(dynamic_jvm_args);
+        
+        // Main class
+        args.push("cpw.mods.bootstraplauncher.BootstrapLauncher".to_string());
+        
+        // Game arguments
+        args.push("--username".to_string());
+        args.push(username.clone());
+        args.push("--version".to_string());
+        args.push(version_id.clone());
+        args.push("--gameDir".to_string());
+        args.push(mc_dir.clone());
+        args.push("--assetsDir".to_string());
+        args.push(Path::new(&mc_dir).join("assets").to_string_lossy().to_string());
+        args.push("--assetIndex".to_string());
+        args.push("5".to_string());
+        
+        let user_uuid = format!("{:x}", uuid::Uuid::new_v3(&uuid::Uuid::NAMESPACE_DNS, username.as_bytes()));
+        args.push("--uuid".to_string());
+        args.push(user_uuid);
+        args.push("--accessToken".to_string());
+        args.push("".to_string());
+        args.push("--clientId".to_string());
+        args.push("${clientid}".to_string());
+        args.push("--xuid".to_string());
+        args.push("${auth_xuid}".to_string());
+        args.push("--userType".to_string());
+        args.push("msa".to_string());
+        args.push("--versionType".to_string());
+        args.push("release".to_string());
+        
+        let extra_game_args = get_game_args_from_json(&mc_dir, &version_id);
+        args.extend(extra_game_args);
+    }
     
     // Launch game and write logs
     send_progress("ЗАПУСК ИГРЫ...", 100, 100);
